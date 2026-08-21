@@ -19,7 +19,16 @@ export type SheetsAppendResult = {
 };
 
 export function normalizeCompany(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
+  return normalizeText(name);
+}
+
+export function normalizeText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Dedupe key: company + role title. */
+export function companyRoleKey(company: string, role: string): string {
+  return `${normalizeText(company)}\0${normalizeText(role)}`;
 }
 
 /** Local calendar date as YYYY-MM-DD (no time). */
@@ -107,44 +116,48 @@ async function ensureHeader(
   }
 }
 
-/** Companies already on the sheet (normalized). */
-async function loadExistingCompanies(
+/** Company+role pairs already on the sheet (normalized). */
+async function loadExistingCompanyRoles(
   sheets: sheets_v4.Sheets,
   spreadsheetId: string,
   sheetName: string,
 ): Promise<Set<string>> {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!A:A`,
+    range: `${sheetName}!A:B`,
   });
   const rows = res.data.values ?? [];
-  const companies = new Set<string>();
+  const keys = new Set<string>();
   for (let i = 0; i < rows.length; i += 1) {
-    const cell = String(rows[i]?.[0] ?? "").trim();
-    if (!cell) continue;
-    if (i === 0 && cell.toLowerCase() === "company") continue;
-    companies.add(normalizeCompany(cell));
+    const company = String(rows[i]?.[0] ?? "").trim();
+    const role = String(rows[i]?.[1] ?? "").trim();
+    if (!company || !role) continue;
+    if (i === 0 && company.toLowerCase() === "company") continue;
+    keys.add(companyRoleKey(company, role));
   }
-  return companies;
+  return keys;
 }
 
 /**
- * Skip jobs whose company is already on the sheet.
- * Multiple jobs for a *new* company in the same run are all kept.
+ * Skip only when the same company + same role title already exists
+ * (on the sheet or earlier in this run). Different roles at the same
+ * company are all uploaded.
  */
-export function filterJobsBySheetCompanies(
+export function filterJobsBySheetCompanyRoles(
   jobs: JobRecord[],
-  existingCompanies: Set<string>,
+  existingKeys: Set<string>,
 ): { toUpload: JobRecord[]; skippedDuplicates: number } {
+  const seen = new Set(existingKeys);
   const toUpload: JobRecord[] = [];
   let skippedDuplicates = 0;
 
   for (const job of jobs) {
-    const key = normalizeCompany(job.company);
-    if (!key || existingCompanies.has(key)) {
+    const key = companyRoleKey(job.company, job.title);
+    if (!normalizeText(job.company) || !normalizeText(job.title) || seen.has(key)) {
       skippedDuplicates += 1;
       continue;
     }
+    seen.add(key);
     toUpload.push(job);
   }
 
@@ -152,7 +165,7 @@ export function filterJobsBySheetCompanies(
 }
 
 /**
- * Dedupe by company against Google Sheets, then append.
+ * Dedupe by company+role against Google Sheets, then append.
  * Columns: Company | Role | Job Link | Source | Date (YYYY-MM-DD).
  */
 export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppendResult> {
@@ -169,13 +182,13 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
-    progress("loading existing companies…");
-    const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
-    progress(`sheet has ${existingCompanies.size} compan${existingCompanies.size === 1 ? "y" : "ies"}`);
+    progress("loading existing company + role rows…");
+    const existingKeys = await loadExistingCompanyRoles(sheets, spreadsheetId, sheetName);
+    progress(`sheet has ${existingKeys.size} company/role row(s)`);
 
-    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(jobs, existingCompanies);
+    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanyRoles(jobs, existingKeys);
     progress(
-      `to upload: ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
+      `to upload: ${toUpload.length} · skipped (same company + role): ${skippedDuplicates}`,
     );
 
     if (toUpload.length === 0) {
