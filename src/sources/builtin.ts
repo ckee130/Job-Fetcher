@@ -43,10 +43,12 @@ function parseJobsFromHtml(html: string): JobRecord[] {
     const path = titleMatch[1] ?? "";
     if (!company || !title || !path) continue;
 
+    const listingUrl = `https://builtin.com${path}`;
     jobs.push({
       company,
       title,
-      jobLink: `https://builtin.com${path}`,
+      jobLink: listingUrl,
+      listingUrl,
       source: "builtin",
       externalId: id,
     });
@@ -60,6 +62,57 @@ function detectMaxPage(html: string): number {
     Number(m[1]),
   );
   return pages.length ? Math.max(...pages) : 1;
+}
+
+/** Extract employer apply URL from Built In job detail HTML (`howToApply`). */
+function extractHowToApply(html: string): string | null {
+  const init = html.match(/Builtin\.jobPostInit\((\{.*?\})\)\s*;/s);
+  if (init?.[1]) {
+    try {
+      const payload = JSON.parse(init[1]) as { job?: { howToApply?: string } };
+      const apply = payload.job?.howToApply?.trim();
+      if (apply && /^https?:\/\//i.test(apply)) return apply;
+    } catch {
+      // fall through to regex
+    }
+  }
+
+  const m = html.match(/"howToApply"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  if (!m?.[1]) return null;
+  const raw = m[1]
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\"/g, '"')
+    .replace(/\\\//g, "/");
+  return /^https?:\/\//i.test(raw) ? raw : null;
+}
+
+async function resolveApplyUrl(listingUrl: string): Promise<string | null> {
+  const res = await httpGet(listingUrl);
+  if (!res.ok) return null;
+  const html = await res.text();
+  return extractHowToApply(html);
+}
+
+/** Resolve employer apply URLs for Built In listings (detail page required). */
+async function enrichWithApplyUrls(jobs: JobRecord[]): Promise<void> {
+  const concurrency = 4;
+  for (let i = 0; i < jobs.length; i += concurrency) {
+    const batch = jobs.slice(i, i + concurrency);
+    await Promise.all(
+      batch.map(async (job) => {
+        if (!job.listingUrl) return;
+        try {
+          const apply = await resolveApplyUrl(job.listingUrl);
+          if (apply) job.jobLink = apply;
+        } catch {
+          // keep listing URL
+        }
+      }),
+    );
+    if (i + concurrency < jobs.length && config.pageDelayMs > 0) {
+      await sleep(config.pageDelayMs);
+    }
+  }
 }
 
 export async function fetchBuiltinJobs(): Promise<FetchResult> {
@@ -102,6 +155,8 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
         jobs.push(job);
       }
     }
+
+    await enrichWithApplyUrls(jobs);
 
     return { source: "builtin", jobs, pagesFetched };
   } catch (err) {

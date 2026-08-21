@@ -5,12 +5,21 @@ import type { JobRecord } from "./types.js";
 
 type SeenStore = {
   updatedAt: string;
-  /** jobLink -> firstSeen ISO timestamp */
+  /** Stable keys (source:id, listing URL, and/or apply URL) -> firstSeen ISO */
   links: Record<string, string>;
 };
 
 function emptyStore(): SeenStore {
   return { updatedAt: new Date().toISOString(), links: {} };
+}
+
+/** All keys that should mark a job as already processed. */
+export function seenKeysFor(job: JobRecord): string[] {
+  const keys: string[] = [];
+  if (job.externalId) keys.push(`${job.source}:${job.externalId}`);
+  if (job.listingUrl?.trim()) keys.push(job.listingUrl.trim());
+  if (job.jobLink.trim()) keys.push(job.jobLink.trim());
+  return [...new Set(keys)];
 }
 
 export function loadSeenStore(): SeenStore {
@@ -30,7 +39,7 @@ export function saveSeenStore(store: SeenStore): void {
   fs.writeFileSync(config.seenJobsPath, JSON.stringify(store, null, 2) + "\n", "utf8");
 }
 
-/** Keep only jobs whose link has never been seen; mark them as seen. */
+/** Keep only jobs that have never been seen; mark them as seen. */
 export function filterNewJobs(jobs: JobRecord[]): {
   newJobs: JobRecord[];
   skippedDuplicates: number;
@@ -41,13 +50,13 @@ export function filterNewJobs(jobs: JobRecord[]): {
   const now = new Date().toISOString();
 
   for (const job of jobs) {
-    const key = job.jobLink.trim();
-    if (!key) continue;
-    if (store.links[key]) {
+    const keys = seenKeysFor(job);
+    if (keys.length === 0) continue;
+    if (keys.some((k) => store.links[k])) {
       skippedDuplicates += 1;
       continue;
     }
-    store.links[key] = now;
+    for (const k of keys) store.links[k] = now;
     newJobs.push(job);
   }
 

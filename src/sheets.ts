@@ -6,7 +6,7 @@ import { google, type sheets_v4 } from "googleapis";
 import { config } from "./config.js";
 import type { JobRecord } from "./types.js";
 
-const HEADER = ["Company", "Role", "Job Link", "Source", "Fetched At"] as const;
+const HEADER = ["Company", "Role", "Job Link", "Source"] as const;
 
 export type SheetsAppendResult = {
   appended: number;
@@ -66,7 +66,7 @@ async function ensureHeader(
   spreadsheetId: string,
   sheetName: string,
 ): Promise<void> {
-  const range = `${sheetName}!A1:E1`;
+  const range = `${sheetName}!A1:D1`;
   const existing = await sheets.spreadsheets.values.get({ spreadsheetId, range });
   const firstRow = existing.data.values?.[0];
   if (firstRow && firstRow.length > 0) return;
@@ -97,18 +97,11 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
-    const fetchedAt = new Date().toISOString();
-    const values = jobs.map((job) => [
-      job.company,
-      job.title,
-      job.jobLink,
-      job.source,
-      fetchedAt,
-    ]);
+    const values = jobs.map((job) => [job.company, job.title, job.jobLink, job.source]);
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${sheetName}!A:E`,
+      range: `${sheetName}!A:D`,
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values },

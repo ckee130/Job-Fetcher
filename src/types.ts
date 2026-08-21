@@ -3,8 +3,11 @@ export type JobSource = "hiringcafe" | "builtin";
 export type JobRecord = {
   company: string;
   title: string;
+  /** Prefer employer apply URL; falls back to source listing URL. */
   jobLink: string;
   source: JobSource;
+  /** Aggregator listing URL (hiringcafe.com / builtin.com) when jobLink is the employer URL. */
+  listingUrl?: string;
   /** Stable id used for dedupe when present */
   externalId?: string;
 };

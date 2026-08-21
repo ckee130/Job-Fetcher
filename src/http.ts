@@ -11,14 +11,22 @@ export async function httpGet(url: string, init: RequestInit = {}): Promise<Resp
     ...(init.headers ?? {}),
   };
 
-  const res = await undiciFetch(url, {
-    ...init,
-    headers,
-    dispatcher,
-    redirect: "follow",
-  });
-
-  return res as unknown as Response;
+  try {
+    const res = await undiciFetch(url, {
+      ...init,
+      headers,
+      dispatcher,
+      redirect: "follow",
+    });
+    return res as unknown as Response;
+  } catch (err) {
+    const cause =
+      err instanceof Error && "cause" in err && err.cause instanceof Error
+        ? err.cause.message
+        : undefined;
+    const base = err instanceof Error ? err.message : String(err);
+    throw new Error(cause ? `${base}: ${cause}` : base);
+  }
 }
 
 export function sleep(ms: number): Promise<void> {

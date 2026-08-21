@@ -73,12 +73,15 @@ async function main(): Promise<void> {
     allFetched.push(...result.jobs);
   }
 
-  // Dedupe across sources by job link before seen-store filter
-  const uniqueByLink = new Map<string, JobRecord>();
+  // Dedupe across sources by external id / listing / apply link
+  const uniqueByKey = new Map<string, JobRecord>();
   for (const job of allFetched) {
-    if (!uniqueByLink.has(job.jobLink)) uniqueByLink.set(job.jobLink, job);
+    const key = job.externalId
+      ? `${job.source}:${job.externalId}`
+      : job.listingUrl || job.jobLink;
+    if (!uniqueByKey.has(key)) uniqueByKey.set(key, job);
   }
-  const uniqueJobs = [...uniqueByLink.values()];
+  const uniqueJobs = [...uniqueByKey.values()];
 
   const { newJobs, skippedDuplicates } = filterNewJobs(uniqueJobs);
   bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;

@@ -80,9 +80,9 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
 
   const req = hit.requisition_id?.trim() || "";
   const slugPath = req ? slugBySuffix.get(req) : undefined;
-  const jobLink = slugPath
-    ? `https://hiringcafe.com${slugPath}`
-    : hit.apply_url?.trim() || "";
+  const listingUrl = slugPath ? `https://hiringcafe.com${slugPath}` : undefined;
+  const applyUrl = hit.apply_url?.trim() || "";
+  const jobLink = applyUrl || listingUrl || "";
 
   if (!title || !company || !jobLink) return null;
 
@@ -90,6 +90,7 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
     company: decodeHtmlEntities(company),
     title: decodeHtmlEntities(title),
     jobLink,
+    listingUrl,
     source: "hiringcafe",
     externalId: hit.id || hit.objectID || req || undefined,
   };

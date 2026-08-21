@@ -23,7 +23,7 @@ cp .env.example .env
    - `GOOGLE_SHEET_NAME` — tab name (default `Jobs`)
    - `GOOGLE_SERVICE_ACCOUNT_FILE` — path to the JSON key
 
-New jobs are appended as: **Company | Role | Job Link | Source | Fetched At**
+New jobs are appended as: **Company | Role | Job Link | Source**
 
 ## Run
 
