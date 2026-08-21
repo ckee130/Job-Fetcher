@@ -75,6 +75,9 @@ export const config = {
   maxPages: intEnv("MAX_PAGES", 0),
   pageDelayMs: intEnv("PAGE_DELAY_MS", 400),
   notify: boolEnv("NOTIFY", true),
+  googleSpreadsheetId: (process.env.GOOGLE_SPREADSHEET_ID || "").trim(),
+  googleSheetName: (process.env.GOOGLE_SHEET_NAME || "Jobs").trim() || "Jobs",
+  googleServiceAccountFile: (process.env.GOOGLE_SERVICE_ACCOUNT_FILE || "").trim(),
   userAgent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 };

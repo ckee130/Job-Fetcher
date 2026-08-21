@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { printRunSummary, sendDesktopNotification } from "./alerts.js";
 import { config } from "./config.js";
+import { appendJobsToSheet } from "./sheets.js";
 import { fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { filterNewJobs } from "./store.js";
@@ -43,14 +44,6 @@ async function main(): Promise<void> {
   const sources = parseSources(process.argv.slice(2));
   const startedAt = new Date().toISOString();
 
-  console.log("Job fetcher starting…");
-  console.log(`  sources: ${sources.join(", ")}`);
-  console.log(`  proxy:   ${config.proxyUrl ? "yes" : "no"}`);
-  console.log(`  maxPages:${config.maxPages === 0 ? "all" : config.maxPages}`);
-  console.log(
-    "  note:    re-runs are safe — only NEW job links are reported (see data/seen-jobs.json)",
-  );
-
   const bySource: RunSummary["bySource"] = {
     hiringcafe: { fetched: 0, newCount: 0, pagesFetched: 0 },
     builtin: { fetched: 0, newCount: 0, pagesFetched: 0 },
@@ -59,7 +52,6 @@ async function main(): Promise<void> {
   const allFetched: JobRecord[] = [];
 
   if (sources.includes("hiringcafe")) {
-    process.stdout.write("Fetching Hiring Cafe… ");
     const result = await fetchHiringCafeJobs();
     bySource.hiringcafe = {
       fetched: result.jobs.length,
@@ -68,15 +60,9 @@ async function main(): Promise<void> {
       error: result.error,
     };
     allFetched.push(...result.jobs);
-    console.log(
-      result.error
-        ? `failed (${result.error})`
-        : `ok (${result.jobs.length} jobs, ${result.pagesFetched} pages)`,
-    );
   }
 
   if (sources.includes("builtin")) {
-    process.stdout.write("Fetching Built In… ");
     const result = await fetchBuiltinJobs();
     bySource.builtin = {
       fetched: result.jobs.length,
@@ -85,11 +71,6 @@ async function main(): Promise<void> {
       error: result.error,
     };
     allFetched.push(...result.jobs);
-    console.log(
-      result.error
-        ? `failed (${result.error})`
-        : `ok (${result.jobs.length} jobs, ${result.pagesFetched} pages)`,
-    );
   }
 
   // Dedupe across sources by job link before seen-store filter
@@ -104,6 +85,7 @@ async function main(): Promise<void> {
   bySource.builtin.newCount = newJobs.filter((j) => j.source === "builtin").length;
 
   const outputPath = writeOutput(newJobs, uniqueJobs);
+  const sheets = await appendJobsToSheet(newJobs);
   const finishedAt = new Date().toISOString();
 
   const summary: RunSummary = {
@@ -114,6 +96,7 @@ async function main(): Promise<void> {
     skippedDuplicates,
     bySource,
     outputPath,
+    sheets,
   };
 
   printRunSummary(summary);
@@ -121,7 +104,8 @@ async function main(): Promise<void> {
 
   const failed =
     (sources.includes("hiringcafe") && bySource.hiringcafe.error) ||
-    (sources.includes("builtin") && bySource.builtin.error);
+    (sources.includes("builtin") && bySource.builtin.error) ||
+    sheets.error;
   if (failed) process.exitCode = 1;
 }
 

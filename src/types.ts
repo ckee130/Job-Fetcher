@@ -27,4 +27,10 @@ export type RunSummary = {
     { fetched: number; newCount: number; pagesFetched: number; error?: string }
   >;
   outputPath: string;
+  sheets?: {
+    appended: number;
+    skipped: boolean;
+    spreadsheetId?: string;
+    error?: string;
+  };
 };

@@ -1,6 +1,6 @@
 # Job Fetcher
 
-Manual CLI that pulls **new** remote US jobs from Hiring Cafe and Built In using your saved filters, then prints a completion summary (and an optional desktop notification).
+Manual CLI that pulls **new** remote US jobs from Hiring Cafe and Built In using your saved filters, appends them to Google Sheets, and sends an optional desktop notification.
 
 No cron — run it yourself (e.g. 3×/day). Re-runs are safe: already-seen job links are skipped via `data/seen-jobs.json`.
 
@@ -12,6 +12,18 @@ npm install
 cp .env.example .env
 # optional: set PROXY_URL=http://user:pass@host:port
 ```
+
+### Google Sheets
+
+1. In Google Cloud, create a service account and enable the **Google Sheets API**
+2. Download the JSON key → save as `credentials/google-service-account.json`
+3. Create a spreadsheet (or use an existing one) and share it with the service account email as **Editor**
+4. In `.env` set:
+   - `GOOGLE_SPREADSHEET_ID` — from the sheet URL (`/d/<ID>/edit`)
+   - `GOOGLE_SHEET_NAME` — tab name (default `Jobs`)
+   - `GOOGLE_SERVICE_ACCOUNT_FILE` — path to the JSON key
+
+New jobs are appended as: **Company | Role | Job Link | Source | Fetched At**
 
 ## Run
 
@@ -30,28 +42,10 @@ npm run fetch:builtin         # Built In only
 
 | Path | What |
 |------|------|
-| `output/new-jobs-<timestamp>.json` | New jobs this run |
+| Google Sheet | New jobs appended each run |
+| `output/new-jobs-<timestamp>.json` | Local backup of new jobs |
 | `output/latest-new-jobs.json` | Same, always overwritten |
-| `output/latest-all-fetched.json` | All listings fetched this run (before “seen” filter) |
 | `data/seen-jobs.json` | Local dedupe store — delete to reset |
-
-Each job record:
-
-```json
-{
-  "company": "MongoDB",
-  "title": "Software Engineer 3, Networking & Observability",
-  "jobLink": "https://builtin.com/job/…",
-  "source": "builtin"
-}
-```
-
-## Alerts
-
-When a run finishes you get:
-
-1. A colored terminal summary (counts, errors, first new jobs)
-2. A desktop notification via `notify-send` if `NOTIFY=1` (default)
 
 ## Env
 
@@ -61,7 +55,4 @@ See `.env.example`:
 - `MAX_PAGES` — cap pages per source while testing (`0` = all)
 - `PAGE_DELAY_MS` — delay between page requests
 - `NOTIFY` — desktop notification on/off
-
-## Next (not in this phase)
-
-Google Sheets append for new jobs.
+- `GOOGLE_SPREADSHEET_ID` / `GOOGLE_SHEET_NAME` / `GOOGLE_SERVICE_ACCOUNT_FILE` — Sheets append
