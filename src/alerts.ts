@@ -18,6 +18,9 @@ export function printRunSummary(summary: RunSummary): void {
 
   console.log("");
   console.log(`${tone}${BOLD}${summary.newJobs.length} new job(s)${RESET}`);
+  if (summary.skippedByTitle) {
+    console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
+  }
 
   for (const source of ["hiringcafe", "builtin"] as const) {
     const s = summary.bySource[source];

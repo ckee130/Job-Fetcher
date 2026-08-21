@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { printRunSummary, sendDesktopNotification } from "./alerts.js";
 import { config } from "./config.js";
+import { filterJobsByTitle } from "./filters.js";
 import { appendJobsToSheet } from "./sheets.js";
 import { fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
@@ -83,20 +84,22 @@ async function main(): Promise<void> {
   }
   const uniqueJobs = [...uniqueByKey.values()];
 
-  const { newJobs, skippedDuplicates } = filterNewJobs(uniqueJobs);
+  const { kept: titleFilteredJobs, skipped: skippedByTitle } = filterJobsByTitle(uniqueJobs);
+  const { newJobs, skippedDuplicates } = filterNewJobs(titleFilteredJobs);
   bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;
   bySource.builtin.newCount = newJobs.filter((j) => j.source === "builtin").length;
 
-  const outputPath = writeOutput(newJobs, uniqueJobs);
+  const outputPath = writeOutput(newJobs, titleFilteredJobs);
   const sheets = await appendJobsToSheet(newJobs);
   const finishedAt = new Date().toISOString();
 
   const summary: RunSummary = {
     startedAt,
     finishedAt,
-    fetchedTotal: uniqueJobs.length,
+    fetchedTotal: titleFilteredJobs.length,
     newJobs,
     skippedDuplicates,
+    skippedByTitle,
     bySource,
     outputPath,
     sheets,

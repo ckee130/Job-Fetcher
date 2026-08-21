@@ -1,4 +1,5 @@
 import { BUILTIN_SEARCH_PARAMS, BUILTIN_SEARCH_PATH, config } from "../config.js";
+import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
@@ -44,14 +45,16 @@ function parseJobsFromHtml(html: string): JobRecord[] {
     if (!company || !title || !path) continue;
 
     const listingUrl = `https://builtin.com${path}`;
-    jobs.push({
+    const job: JobRecord = {
       company,
       title,
       jobLink: listingUrl,
       listingUrl,
       source: "builtin",
       externalId: id,
-    });
+    };
+    if (shouldSkipJob(job)) continue;
+    jobs.push(job);
   }
 
   return jobs;

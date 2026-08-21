@@ -1,4 +1,5 @@
 import { config, HIRINGCAFE_SEARCH_STATE } from "../config.js";
+import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
@@ -86,7 +87,7 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
 
   if (!title || !company || !jobLink) return null;
 
-  return {
+  const job: JobRecord = {
     company: decodeHtmlEntities(company),
     title: decodeHtmlEntities(title),
     jobLink,
@@ -94,6 +95,8 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
     source: "hiringcafe",
     externalId: hit.id || hit.objectID || req || undefined,
   };
+  if (shouldSkipJob(job)) return null;
+  return job;
 }
 
 export async function fetchHiringCafeJobs(): Promise<FetchResult> {
