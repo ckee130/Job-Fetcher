@@ -4,6 +4,7 @@ import path from "node:path";
 import { printRunSummary, sendDesktopNotification } from "./alerts.js";
 import { config } from "./config.js";
 import { filterJobsByTitle } from "./filters.js";
+import { progress, progressPhase } from "./progress.js";
 import { appendJobsToSheet } from "./sheets.js";
 import { fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
@@ -44,6 +45,9 @@ async function main(): Promise<void> {
   const sources = parseSources(process.argv.slice(2));
   const startedAt = new Date().toISOString();
 
+  console.log(`Job fetcher — sources: ${sources.join(", ")}`);
+  if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
+
   const bySource: RunSummary["bySource"] = {
     hiringcafe: { fetched: 0, newCount: 0, pagesFetched: 0 },
     builtin: { fetched: 0, newCount: 0, pagesFetched: 0 },
@@ -52,6 +56,7 @@ async function main(): Promise<void> {
   const allFetched: JobRecord[] = [];
 
   if (sources.includes("hiringcafe")) {
+    progressPhase("Fetching Hiring Cafe");
     const result = await fetchHiringCafeJobs();
     bySource.hiringcafe = {
       fetched: result.jobs.length,
@@ -60,9 +65,12 @@ async function main(): Promise<void> {
       error: result.error,
     };
     allFetched.push(...result.jobs);
+    if (result.error) progress(`Hiring Cafe failed: ${result.error}`);
+    else progress(`Hiring Cafe done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
   }
 
   if (sources.includes("builtin")) {
+    progressPhase("Fetching Built In");
     const result = await fetchBuiltinJobs();
     bySource.builtin = {
       fetched: result.jobs.length,
@@ -71,6 +79,8 @@ async function main(): Promise<void> {
       error: result.error,
     };
     allFetched.push(...result.jobs);
+    if (result.error) progress(`Built In failed: ${result.error}`);
+    else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
   }
 
   // Dedupe across sources by external id / listing / apply link (same fetch only)
@@ -83,9 +93,13 @@ async function main(): Promise<void> {
   }
   const uniqueJobs = [...uniqueByKey.values()];
 
+  progressPhase("Filtering");
   const { kept: titleFilteredJobs, skipped: skippedByTitle } = filterJobsByTitle(uniqueJobs);
+  progress(
+    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle} (of ${uniqueJobs.length} unique)`,
+  );
 
-  // Company-level dedupe lives in Google Sheets (no local seen-jobs file)
+  progressPhase("Google Sheets");
   const sheets = await appendJobsToSheet(titleFilteredJobs);
   const newJobs = sheets.uploadedJobs;
   bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;

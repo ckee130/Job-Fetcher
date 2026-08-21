@@ -4,6 +4,7 @@ import path from "node:path";
 import { google, type sheets_v4 } from "googleapis";
 
 import { config } from "./config.js";
+import { progress } from "./progress.js";
 import type { JobRecord } from "./types.js";
 
 const HEADER = ["Company", "Role", "Job Link", "Source", "Date"] as const;
@@ -163,12 +164,19 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
   const sheetName = config.googleSheetName;
 
   try {
+    progress("connecting to Google Sheets…");
     const sheets = await getSheetsClient();
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
+    progress("loading existing companies…");
     const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
+    progress(`sheet has ${existingCompanies.size} compan${existingCompanies.size === 1 ? "y" : "ies"}`);
+
     const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(jobs, existingCompanies);
+    progress(
+      `to upload: ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
+    );
 
     if (toUpload.length === 0) {
       return {
@@ -180,6 +188,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       };
     }
 
+    progress(`appending ${toUpload.length} row(s)…`);
     const date = todayDate();
     const values = toUpload.map((job) => [
       job.company,
@@ -196,6 +205,8 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       insertDataOption: "INSERT_ROWS",
       requestBody: { values },
     });
+
+    progress(`appended ${toUpload.length} row(s) with date ${date}`);
 
     return {
       appended: toUpload.length,

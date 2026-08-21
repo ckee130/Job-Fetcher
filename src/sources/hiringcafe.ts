@@ -1,6 +1,7 @@
 import { config, HIRINGCAFE_SEARCH_STATE } from "../config.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
+import { progress } from "../progress.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 type HcHit = {
@@ -137,6 +138,12 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
         pp.ssrIsLastPage === true ||
         hits.length === 0 ||
         (typeof pp.ssrPageSize === "number" && hits.length < pp.ssrPageSize);
+
+      const totalHint =
+        typeof pp.ssrTotalCount === "number" ? ` / ~${pp.ssrTotalCount} listings` : "";
+      progress(
+        `Hiring Cafe page ${pagesFetched}: +${hits.length} hits → ${jobs.length} kept${totalHint}${isLast ? " (done)" : ""}`,
+      );
 
       if (isLast) break;
       page += 1;

@@ -1,6 +1,7 @@
 import { BUILTIN_SEARCH_PARAMS, BUILTIN_SEARCH_PATH, config } from "../config.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
+import { progress } from "../progress.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 function decodeHtmlEntities(text: string): string {
@@ -98,7 +99,10 @@ async function resolveApplyUrl(listingUrl: string): Promise<string | null> {
 
 /** Resolve employer apply URLs for Built In listings (detail page required). */
 async function enrichWithApplyUrls(jobs: JobRecord[]): Promise<void> {
+  if (jobs.length === 0) return;
+  progress(`Built In: resolving apply URLs for ${jobs.length} jobs…`);
   const concurrency = 4;
+  let done = 0;
   for (let i = 0; i < jobs.length; i += concurrency) {
     const batch = jobs.slice(i, i + concurrency);
     await Promise.all(
@@ -112,6 +116,8 @@ async function enrichWithApplyUrls(jobs: JobRecord[]): Promise<void> {
         }
       }),
     );
+    done = Math.min(jobs.length, i + concurrency);
+    progress(`Built In apply URLs: ${done}/${jobs.length}`);
     if (i + concurrency < jobs.length && config.pageDelayMs > 0) {
       await sleep(config.pageDelayMs);
     }
@@ -139,6 +145,7 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
 
     let maxPage = detectMaxPage(firstHtml);
     if (config.maxPages > 0) maxPage = Math.min(maxPage, config.maxPages);
+    progress(`Built In page 1/${maxPage}: ${jobs.length} jobs so far`);
 
     for (let page = 2; page <= maxPage; page += 1) {
       if (config.pageDelayMs > 0) await sleep(config.pageDelayMs);
@@ -149,7 +156,10 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
       pagesFetched += 1;
 
       const pageJobs = parseJobsFromHtml(html);
-      if (pageJobs.length === 0) break;
+      if (pageJobs.length === 0) {
+        progress(`Built In page ${page}/${maxPage}: empty — stopping`);
+        break;
+      }
 
       for (const job of pageJobs) {
         const key = job.externalId || job.jobLink;
@@ -157,6 +167,7 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
         seenIds.add(key);
         jobs.push(job);
       }
+      progress(`Built In page ${page}/${maxPage}: ${jobs.length} jobs so far`);
     }
 
     await enrichWithApplyUrls(jobs);
