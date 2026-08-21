@@ -21,6 +21,9 @@ export function printRunSummary(summary: RunSummary): void {
   if (summary.skippedByTitle) {
     console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
   }
+  if (summary.skippedDuplicates) {
+    console.log(`  skipped (company already on sheet): ${summary.skippedDuplicates}`);
+  }
 
   for (const source of ["hiringcafe", "builtin"] as const) {
     const s = summary.bySource[source];
@@ -53,7 +56,7 @@ export function sendDesktopNotification(summary: RunSummary): void {
   const bodyParts = [
     `Fetched ${summary.fetchedTotal}`,
     `new ${summary.newJobs.length}`,
-    `skipped ${summary.skippedDuplicates}`,
+    `company-dupes ${summary.skippedDuplicates}`,
   ];
   if (summary.sheets && !summary.sheets.skipped && !summary.sheets.error) {
     bodyParts.push(`sheets +${summary.sheets.appended}`);

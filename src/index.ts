@@ -7,7 +7,6 @@ import { filterJobsByTitle } from "./filters.js";
 import { appendJobsToSheet } from "./sheets.js";
 import { fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
-import { filterNewJobs } from "./store.js";
 import type { JobRecord, JobSource, RunSummary } from "./types.js";
 
 function parseSources(argv: string[]): JobSource[] {
@@ -74,7 +73,7 @@ async function main(): Promise<void> {
     allFetched.push(...result.jobs);
   }
 
-  // Dedupe across sources by external id / listing / apply link
+  // Dedupe across sources by external id / listing / apply link (same fetch only)
   const uniqueByKey = new Map<string, JobRecord>();
   for (const job of allFetched) {
     const key = job.externalId
@@ -85,12 +84,14 @@ async function main(): Promise<void> {
   const uniqueJobs = [...uniqueByKey.values()];
 
   const { kept: titleFilteredJobs, skipped: skippedByTitle } = filterJobsByTitle(uniqueJobs);
-  const { newJobs, skippedDuplicates } = filterNewJobs(titleFilteredJobs);
+
+  // Company-level dedupe lives in Google Sheets (no local seen-jobs file)
+  const sheets = await appendJobsToSheet(titleFilteredJobs);
+  const newJobs = sheets.uploadedJobs;
   bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;
   bySource.builtin.newCount = newJobs.filter((j) => j.source === "builtin").length;
 
   const outputPath = writeOutput(newJobs, titleFilteredJobs);
-  const sheets = await appendJobsToSheet(newJobs);
   const finishedAt = new Date().toISOString();
 
   const summary: RunSummary = {
@@ -98,7 +99,7 @@ async function main(): Promise<void> {
     finishedAt,
     fetchedTotal: titleFilteredJobs.length,
     newJobs,
-    skippedDuplicates,
+    skippedDuplicates: sheets.skippedDuplicates,
     skippedByTitle,
     bySource,
     outputPath,

@@ -2,7 +2,7 @@
 
 Manual CLI that pulls **new** remote US jobs from Hiring Cafe and Built In using your saved filters, appends them to Google Sheets, and sends an optional desktop notification.
 
-No cron — run it yourself (e.g. 3×/day). Re-runs are safe: already-seen job links are skipped via `data/seen-jobs.json`.
+No cron — run it yourself (e.g. 3×/day). Re-runs are safe: if a **company** is already on the sheet, that job is skipped.
 
 ## Setup
 
@@ -23,7 +23,7 @@ cp .env.example .env
    - `GOOGLE_SHEET_NAME` — tab name (default `Jobs`)
    - `GOOGLE_SERVICE_ACCOUNT_FILE` — path to the JSON key
 
-New jobs are appended as: **Company | Role | Job Link | Source**
+New jobs are appended as: **Company | Role | Job Link | Source | Date** (`YYYY-MM-DD`)
 
 ## Run
 
@@ -37,15 +37,16 @@ npm run fetch:builtin         # Built In only
 
 - **Hiring Cafe:** US + Remote, last 2 days, Software/Data/Engineering/IT, 5–10 YoE, IC, no clearance/certs
 - **Built In:** Remote engineering (software / devops / QA / security / automation), mid–expert, updated in last 1 day, USA
+- **Title skips:** manager, director, designer (see `src/filters.ts`)
+- **Sheet dedupe:** skip if company already exists on the sheet; multiple roles at a new company in the same run are all uploaded
 
 ## Output
 
 | Path | What |
 |------|------|
 | Google Sheet | New jobs appended each run |
-| `output/new-jobs-<timestamp>.json` | Local backup of new jobs |
+| `output/new-jobs-<timestamp>.json` | Local backup of appended jobs |
 | `output/latest-new-jobs.json` | Same, always overwritten |
-| `data/seen-jobs.json` | Local dedupe store — delete to reset |
 
 ## Env
 

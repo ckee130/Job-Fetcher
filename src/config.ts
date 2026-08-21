@@ -70,7 +70,6 @@ export const config = {
   rootDir,
   dataDir: path.join(rootDir, "data"),
   outputDir: path.join(rootDir, "output"),
-  seenJobsPath: path.join(rootDir, "data", "seen-jobs.json"),
   proxyUrl: (process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "").trim(),
   maxPages: intEnv("MAX_PAGES", 0),
   pageDelayMs: intEnv("PAGE_DELAY_MS", 400),
