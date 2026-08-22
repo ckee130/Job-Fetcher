@@ -8,6 +8,25 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** Match needles for CV filenames. Multi-word names also match hyphenated form. */
+export function companyNameMatchVariants(company: string): string[] {
+  const normalized = normalizeText(company);
+  if (!normalized) return [];
+  const words = normalized.split(" ").filter(Boolean);
+  if (words.length <= 1) return [normalized];
+  return [words.join(" "), words.join("-")];
+}
+
+/** True if any filename in the CV dir contains the company name (or hyphen/space variants). */
+export function companyHasCvFile(company: string, filenames: string[]): boolean {
+  const variants = companyNameMatchVariants(company);
+  if (variants.length === 0 || filenames.length === 0) return false;
+  return filenames.some((name) => {
+    const haystack = normalizeText(name);
+    return variants.some((variant) => haystack.includes(variant));
+  });
+}
+
 /** `D:\remote\CV\{sheet}` — `{sheet}` is replaced with GOOGLE_SHEET_NAME. */
 export function resolveCvDir(sheetName: string): string {
   const template = config.cvDir.trim();
@@ -26,13 +45,6 @@ function listFilenames(dir: string): string[] {
     if (code === "ENOENT") return [];
     throw err;
   }
-}
-
-/** True if any filename in the CV dir contains the company name. */
-export function companyHasCvFile(company: string, filenames: string[]): boolean {
-  const needle = normalizeText(company);
-  if (!needle || filenames.length === 0) return false;
-  return filenames.some((name) => normalizeText(name).includes(needle));
 }
 
 /**
