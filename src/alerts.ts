@@ -18,6 +18,11 @@ export function printRunSummary(summary: RunSummary): void {
 
   console.log("");
   console.log(`${tone}${BOLD}${summary.newJobs.length} new job(s)${RESET}`);
+  if (summary.skippedCrossPlatform) {
+    console.log(
+      `  skipped (duplicate across Hiring Cafe / Built In): ${summary.skippedCrossPlatform}`,
+    );
+  }
   if (summary.skippedByTitle) {
     console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
   }
@@ -56,8 +61,14 @@ export function sendDesktopNotification(summary: RunSummary): void {
   const bodyParts = [
     `Fetched ${summary.fetchedTotal}`,
     `new ${summary.newJobs.length}`,
-    `role-dupes ${summary.skippedDuplicates}`,
   ];
+  if (summary.skippedCrossPlatform) {
+    bodyParts.push(`cross-platform ${summary.skippedCrossPlatform}`);
+  }
+  if (summary.skippedByTitle) {
+    bodyParts.push(`title-filter ${summary.skippedByTitle}`);
+  }
+  bodyParts.push(`role-dupes ${summary.skippedDuplicates}`);
   if (summary.sheets && !summary.sheets.skipped && !summary.sheets.error) {
     bodyParts.push(`sheets +${summary.sheets.appended}`);
   }

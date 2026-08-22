@@ -37,8 +37,9 @@ npm run fetch:builtin         # Built In only
 
 - **Hiring Cafe:** US + Remote, last 2 days, Software/Data/Engineering/IT, 5–10 YoE, IC, no clearance/certs
 - **Built In:** Remote engineering (software / devops / QA / security / automation), mid–expert, updated in last 1 day, USA
-- **Title skips:** manager, director, designer (see `src/filters.ts`)
-- **Sheet dedupe:** skip only if the same company **and** role title already exist; different roles at the same company are uploaded
+- **Title skips:** manager, director, designer, VP (see `src/filters.ts`)
+- **Cross-platform dedupe:** if Hiring Cafe and Built In both have the same job (same employer apply URL or same company + role), only one is kept — Hiring Cafe wins
+- **Sheet dedupe:** skip only if the same company **and** role title already exist on the sheet; different roles at the same company are uploaded
 
 ## Output
 

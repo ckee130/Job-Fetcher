@@ -26,6 +26,7 @@ export type RunSummary = {
   newJobs: JobRecord[];
   skippedDuplicates: number;
   skippedByTitle?: number;
+  skippedCrossPlatform?: number;
   bySource: Record<
     JobSource,
     { fetched: number; newCount: number; pagesFetched: number; error?: string }

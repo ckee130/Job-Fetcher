@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { printRunSummary, sendDesktopNotification } from "./alerts.js";
 import { config } from "./config.js";
+import { dedupeCrossPlatform } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
 import { appendJobsToSheet } from "./sheets.js";
@@ -83,20 +84,18 @@ async function main(): Promise<void> {
     else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
   }
 
-  // Dedupe across sources by external id / listing / apply link (same fetch only)
-  const uniqueByKey = new Map<string, JobRecord>();
-  for (const job of allFetched) {
-    const key = job.externalId
-      ? `${job.source}:${job.externalId}`
-      : job.listingUrl || job.jobLink;
-    if (!uniqueByKey.has(key)) uniqueByKey.set(key, job);
+  // Cross-platform dedupe (same employer URL or same company + role)
+  const { kept: crossPlatformJobs, skipped: skippedCrossPlatform } =
+    dedupeCrossPlatform(allFetched);
+  if (skippedCrossPlatform > 0) {
+    progress(`cross-platform dedupe: skipped ${skippedCrossPlatform} duplicate(s)`);
   }
-  const uniqueJobs = [...uniqueByKey.values()];
 
   progressPhase("Filtering");
-  const { kept: titleFilteredJobs, skipped: skippedByTitle } = filterJobsByTitle(uniqueJobs);
+  const { kept: titleFilteredJobs, skipped: skippedByTitle } =
+    filterJobsByTitle(crossPlatformJobs);
   progress(
-    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle} (of ${uniqueJobs.length} unique)`,
+    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle} (of ${crossPlatformJobs.length} after cross-platform dedupe)`,
   );
 
   progressPhase("Google Sheets");
@@ -115,6 +114,7 @@ async function main(): Promise<void> {
     newJobs,
     skippedDuplicates: sheets.skippedDuplicates,
     skippedByTitle,
+    skippedCrossPlatform,
     bySource,
     outputPath,
     sheets,

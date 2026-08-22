@@ -1,7 +1,7 @@
 import type { JobRecord } from "./types.js";
 
 /** Titles to skip for IC-focused accuracy. Extend as needed. */
-const TITLE_EXCLUDE = [/\bmanagers?\b/i, /\bdirectors?\b/i, /\bdesigners?\b/i] as const;
+const TITLE_EXCLUDE = [/\bmanagers?\b/i, /\bdirectors?\b/i, /\bdesigners?\b/i, /\bvp\b/i] as const;
 
 export function shouldSkipJob(job: Pick<JobRecord, "title">): boolean {
   const title = job.title.trim();
