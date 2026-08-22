@@ -243,7 +243,7 @@ export async function appendRowsToSheet(
       job.title,
       job.jobLink,
       job.source,
-      date,
+      `'${date}`, // leading ' keeps YYYY-MM-DD as text (avoids serial like 46256)
     ]);
 
     await sheets.spreadsheets.values.append({
