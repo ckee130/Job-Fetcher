@@ -9,6 +9,7 @@ import { progress, progressPhase } from "./progress.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import { enrichBuiltinApplyUrls, fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
+import { resolveProfileName, setActiveProfile } from "./profiles.js";
 import type { JobRecord, JobSource, RunSummary } from "./types.js";
 
 function parseSources(argv: string[]): JobSource[] {
@@ -43,10 +44,12 @@ function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
 }
 
 async function main(): Promise<void> {
-  const sources = parseSources(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const profile = setActiveProfile(resolveProfileName(argv));
+  const sources = parseSources(argv);
   const startedAt = new Date().toISOString();
 
-  console.log(`Job fetcher — sources: ${sources.join(", ")}`);
+  console.log(`Job fetcher — profile: ${profile.name} · sources: ${sources.join(", ")}`);
   if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
 
   const bySource: RunSummary["bySource"] = {

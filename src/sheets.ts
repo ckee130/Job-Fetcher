@@ -6,6 +6,7 @@ import { google, type sheets_v4 } from "googleapis";
 import { config } from "./config.js";
 import { filterJobsByCvDir } from "./cv.js";
 import { progress } from "./progress.js";
+import { getActiveProfile } from "./profiles.js";
 import type { JobRecord } from "./types.js";
 
 const HEADER = ["Company", "Role", "Job Link", "Source", "Date"] as const;
@@ -185,7 +186,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
   }
 
   const spreadsheetId = config.googleSpreadsheetId;
-  const sheetName = config.googleSheetName;
+  const sheetName = getActiveProfile().name;
 
   try {
     progress("connecting to Google Sheets…");
@@ -231,7 +232,7 @@ export async function appendRowsToSheet(
   }
 
   const spreadsheetId = config.googleSpreadsheetId;
-  const sheetName = config.googleSheetName;
+  const sheetName = getActiveProfile().name;
 
   try {
     const sheets = await getSheetsClient();

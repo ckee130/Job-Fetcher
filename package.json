@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "fetch": "tsx src/index.ts",
+    "fetch:clinton": "tsx src/index.ts --profile=Clinton",
+    "fetch:nathan": "tsx src/index.ts --profile=Nathan",
+    "fetch:andrei": "tsx src/index.ts --profile=Andrei",
     "fetch:builtin": "tsx src/index.ts --source=builtin",
     "fetch:hiringcafe": "tsx src/index.ts --source=hiringcafe",
     "typecheck": "tsc --noEmit"

@@ -1,4 +1,5 @@
-import { BUILTIN_SEARCH_PARAMS, BUILTIN_SEARCH_PATH, config } from "../config.js";
+import { config } from "../config.js";
+import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import { progress } from "../progress.js";
@@ -21,8 +22,9 @@ function stripTags(html: string): string {
 }
 
 function buildPageUrl(page: number): string {
-  const url = new URL(BUILTIN_SEARCH_PATH, "https://builtin.com");
-  for (const [k, v] of Object.entries(BUILTIN_SEARCH_PARAMS)) {
+  const { path: searchPath, params } = getActiveProfile().builtin;
+  const url = new URL(searchPath, "https://builtin.com");
+  for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
   if (page > 1) url.searchParams.set("page", String(page));

@@ -1,4 +1,5 @@
-import { config, HIRINGCAFE_SEARCH_STATE } from "../config.js";
+import { config } from "../config.js";
+import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import { progress } from "../progress.js";
@@ -64,7 +65,7 @@ function extractJobSlugs(html: string): Map<string, string> {
 
 function buildSearchUrl(page: number): string {
   const url = new URL("https://hiringcafe.com/");
-  url.searchParams.set("searchState", JSON.stringify(HIRINGCAFE_SEARCH_STATE));
+  url.searchParams.set("searchState", JSON.stringify(getActiveProfile().hiringCafe));
   if (page > 0) url.searchParams.set("page", String(page));
   return url.toString();
 }
