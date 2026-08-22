@@ -37,11 +37,11 @@ Optional: `--source=hiringcafe` or `--source=builtin` for one source only.
 
 ## Profiles
 
-| Profile | Hiring Cafe | Built In |
-|---------|-------------|----------|
-| **Clinton** | US remote, 4 days, eng depts, 5–10 YoE | US data-analytics senior/expert-leader, 3 days |
-| **Nathan** | US remote, 4 days, eng depts, 4–8 YoE | US data-analytics senior, 3 days |
-| **Andrei** | Remote, 4 days, 2–6 YoE (no US/dept filter) | UK (London) data-analytics mid/senior, 3 days |
+| Profile | Hiring Cafe | Built In (3 searches each) |
+|---------|-------------|----------------------------|
+| **Clinton** | US remote, 4 days, eng depts, 5–10 YoE | USA: data-engineering + engineering + AI/ML (senior/expert-leader) |
+| **Nathan** | US remote, 4 days, eng depts, 4–8 YoE | USA: data-engineering + engineering + AI/ML (senior) |
+| **Andrei** | Remote, 4 days, 2–6 YoE (no US/dept filter) | GBR: AI/ML + engineering + data-engineering (senior) |
 
 Filters are defined in `src/profiles.ts`.
 

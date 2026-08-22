@@ -31,17 +31,34 @@ const ENGINEERING_DEPARTMENTS = [
   "Information Technology",
 ] as const;
 
+export type BuiltinSearch = {
+  path: string;
+  params: Record<string, string>;
+};
+
 export type Profile = {
   /** Google Sheet tab name and CV subfolder name. */
   name: string;
   /** Per-profile HTTP proxy; falls back to PROXY_URL when unset. */
   proxyUrl?: string;
   hiringCafe: Record<string, unknown>;
-  builtin: {
-    path: string;
-    params: Record<string, string>;
-  };
+  /** Three Built In saved searches per profile. */
+  builtinSearches: BuiltinSearch[];
 };
+
+const BUILTIN_USA = {
+  daysSinceUpdated: "3",
+  country: "USA",
+  allLocations: "true",
+} as const;
+
+const BUILTIN_GBR = {
+  daysSinceUpdated: "3",
+  city: "",
+  state: "",
+  country: "GBR",
+  allLocations: "true",
+} as const;
 
 export const PROFILES = {
   Clinton: {
@@ -57,14 +74,20 @@ export const PROFILES = {
       securityClearances: ["None"],
       sortBy: "date",
     },
-    builtin: {
-      path: "/jobs/remote/data-analytics/senior/expert-leader",
-      params: {
-        daysSinceUpdated: "3",
-        country: "USA",
-        allLocations: "true",
+    builtinSearches: [
+      {
+        path: "/jobs/remote/data-analytics/data-engineering/senior/expert-leader",
+        params: { ...BUILTIN_USA },
       },
-    },
+      {
+        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior/expert-leader",
+        params: { ...BUILTIN_USA },
+      },
+      {
+        path: "/jobs/remote/ai-machine-learning/senior/expert-leader",
+        params: { ...BUILTIN_USA },
+      },
+    ],
   },
   Nathan: {
     name: "Nathan",
@@ -79,14 +102,20 @@ export const PROFILES = {
       securityClearances: ["None"],
       sortBy: "date",
     },
-    builtin: {
-      path: "/jobs/remote/data-analytics/senior",
-      params: {
-        daysSinceUpdated: "3",
-        country: "USA",
-        allLocations: "true",
+    builtinSearches: [
+      {
+        path: "/jobs/remote/data-analytics/data-engineering/senior",
+        params: { ...BUILTIN_USA },
       },
-    },
+      {
+        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior",
+        params: { ...BUILTIN_USA },
+      },
+      {
+        path: "/jobs/remote/ai-machine-learning/senior",
+        params: { ...BUILTIN_USA },
+      },
+    ],
   },
   Andrei: {
     name: "Andrei",
@@ -105,16 +134,20 @@ export const PROFILES = {
       roleTypes: ["Individual Contributor"],
       securityClearances: ["None"],
     },
-    builtin: {
-      path: "/jobs/remote/data-analytics/mid-level/senior",
-      params: {
-        daysSinceUpdated: "3",
-        city: "London",
-        state: "England",
-        country: "GBR",
-        allLocations: "true",
+    builtinSearches: [
+      {
+        path: "/jobs/remote/ai-machine-learning/senior",
+        params: { ...BUILTIN_GBR },
       },
-    },
+      {
+        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior",
+        params: { ...BUILTIN_GBR },
+      },
+      {
+        path: "/jobs/remote/data-analytics/data-engineering/senior",
+        params: { ...BUILTIN_GBR },
+      },
+    ],
   },
 } as const satisfies Record<string, Profile>;
 

@@ -1,5 +1,5 @@
 import { config } from "../config.js";
-import { getActiveProfile } from "../profiles.js";
+import { getActiveProfile, type BuiltinSearch } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import { progress } from "../progress.js";
@@ -21,10 +21,9 @@ function stripTags(html: string): string {
   return decodeHtmlEntities(html.replace(/<[^>]+>/g, "")).trim();
 }
 
-function buildPageUrl(page: number): string {
-  const { path: searchPath, params } = getActiveProfile().builtin;
-  const url = new URL(searchPath, "https://builtin.com");
-  for (const [k, v] of Object.entries(params)) {
+function buildPageUrl(search: BuiltinSearch, page: number): string {
+  const url = new URL(search.path, "https://builtin.com");
+  for (const [k, v] of Object.entries(search.params)) {
     url.searchParams.set(k, v);
   }
   if (page > 1) url.searchParams.set("page", String(page));
@@ -126,55 +125,85 @@ async function enrichWithApplyUrls(jobs: JobRecord[]): Promise<void> {
   }
 }
 
-/** Resolve employer apply URLs for Built In listings (detail page required). */
 export async function enrichBuiltinApplyUrls(jobs: JobRecord[]): Promise<void> {
   await enrichWithApplyUrls(jobs);
 }
 
-export async function fetchBuiltinJobs(): Promise<FetchResult> {
-  const jobs: JobRecord[] = [];
-  const seenIds = new Set<string>();
-  let pagesFetched = 0;
+function searchLabel(search: BuiltinSearch): string {
+  const slug = search.path.split("/").filter(Boolean).slice(-2).join("/");
+  return slug || search.path;
+}
 
-  try {
-    const firstUrl = buildPageUrl(1);
-    const firstRes = await httpGet(firstUrl);
-    if (!firstRes.ok) throw new Error(`HTTP ${firstRes.status} for ${firstUrl}`);
-    const firstHtml = await firstRes.text();
+async function fetchOneBuiltinSearch(
+  search: BuiltinSearch,
+  searchIndex: number,
+  searchTotal: number,
+  seenIds: Set<string>,
+  jobs: JobRecord[],
+): Promise<number> {
+  let pagesFetched = 0;
+  const label = searchLabel(search);
+  progress(`Built In [${searchIndex}/${searchTotal}] ${label}`);
+
+  const firstUrl = buildPageUrl(search, 1);
+  const firstRes = await httpGet(firstUrl);
+  if (!firstRes.ok) throw new Error(`HTTP ${firstRes.status} for ${firstUrl}`);
+  const firstHtml = await firstRes.text();
+  pagesFetched += 1;
+
+  for (const job of parseJobsFromHtml(firstHtml)) {
+    const key = job.externalId || job.jobLink;
+    if (seenIds.has(key)) continue;
+    seenIds.add(key);
+    jobs.push(job);
+  }
+
+  let maxPage = detectMaxPage(firstHtml);
+  if (config.maxPages > 0) maxPage = Math.min(maxPage, config.maxPages);
+  progress(`  page 1/${maxPage}: ${jobs.length} jobs total`);
+
+  for (let page = 2; page <= maxPage; page += 1) {
+    if (config.pageDelayMs > 0) await sleep(config.pageDelayMs);
+    const url = buildPageUrl(search, page);
+    const res = await httpGet(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    const html = await res.text();
     pagesFetched += 1;
 
-    for (const job of parseJobsFromHtml(firstHtml)) {
+    const pageJobs = parseJobsFromHtml(html);
+    if (pageJobs.length === 0) {
+      progress(`  page ${page}/${maxPage}: empty — stopping this search`);
+      break;
+    }
+
+    for (const job of pageJobs) {
       const key = job.externalId || job.jobLink;
       if (seenIds.has(key)) continue;
       seenIds.add(key);
       jobs.push(job);
     }
+    progress(`  page ${page}/${maxPage}: ${jobs.length} jobs total`);
+  }
 
-    let maxPage = detectMaxPage(firstHtml);
-    if (config.maxPages > 0) maxPage = Math.min(maxPage, config.maxPages);
-    progress(`Built In page 1/${maxPage}: ${jobs.length} jobs so far`);
+  return pagesFetched;
+}
 
-    for (let page = 2; page <= maxPage; page += 1) {
-      if (config.pageDelayMs > 0) await sleep(config.pageDelayMs);
-      const url = buildPageUrl(page);
-      const res = await httpGet(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      const html = await res.text();
-      pagesFetched += 1;
+export async function fetchBuiltinJobs(): Promise<FetchResult> {
+  const searches = getActiveProfile().builtinSearches;
+  const jobs: JobRecord[] = [];
+  const seenIds = new Set<string>();
+  let pagesFetched = 0;
 
-      const pageJobs = parseJobsFromHtml(html);
-      if (pageJobs.length === 0) {
-        progress(`Built In page ${page}/${maxPage}: empty — stopping`);
-        break;
-      }
-
-      for (const job of pageJobs) {
-        const key = job.externalId || job.jobLink;
-        if (seenIds.has(key)) continue;
-        seenIds.add(key);
-        jobs.push(job);
-      }
-      progress(`Built In page ${page}/${maxPage}: ${jobs.length} jobs so far`);
+  try {
+    for (let i = 0; i < searches.length; i += 1) {
+      if (i > 0 && config.pageDelayMs > 0) await sleep(config.pageDelayMs);
+      pagesFetched += await fetchOneBuiltinSearch(
+        searches[i]!,
+        i + 1,
+        searches.length,
+        seenIds,
+        jobs,
+      );
     }
 
     return { source: "builtin", jobs, pagesFetched };
