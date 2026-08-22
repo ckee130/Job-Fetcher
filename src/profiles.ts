@@ -1,3 +1,5 @@
+import { parseProxyUrl } from "./proxy.js";
+
 const US_REMOTE = {
   id: "FxY1yZQBoEtHp_8UEq7V",
   types: ["country"],
@@ -32,6 +34,8 @@ const ENGINEERING_DEPARTMENTS = [
 export type Profile = {
   /** Google Sheet tab name and CV subfolder name. */
   name: string;
+  /** Per-profile HTTP proxy; falls back to PROXY_URL when unset. */
+  proxyUrl?: string;
   hiringCafe: Record<string, unknown>;
   builtin: {
     path: string;
@@ -86,6 +90,7 @@ export const PROFILES = {
   },
   Andrei: {
     name: "Andrei",
+    proxyUrl: parseProxyUrl(process.env.ANDREI_PROXY_URL || ""),
     hiringCafe: {
       workplaceTypes: ["Remote"],
       commitmentTypes: [...COMMITMENT_TYPES],
@@ -132,6 +137,11 @@ export function getActiveProfile(): Profile {
     );
   }
   return activeProfile;
+}
+
+export function getActiveProxyUrl(): string {
+  const profile = getActiveProfile();
+  return (profile.proxyUrl || "").trim();
 }
 
 /** `--profile=Clinton` or PROFILE env. */

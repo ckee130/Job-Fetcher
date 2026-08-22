@@ -1,7 +1,23 @@
 import { ProxyAgent, fetch as undiciFetch, type RequestInit } from "undici";
 import { config } from "./config.js";
+import { getActiveProxyUrl } from "./profiles.js";
 
-const dispatcher = config.proxyUrl ? new ProxyAgent(config.proxyUrl) : undefined;
+const dispatchers = new Map<string, ProxyAgent>();
+
+function resolveProxyUrl(): string {
+  return getActiveProxyUrl() || config.proxyUrl;
+}
+
+function getDispatcher(): ProxyAgent | undefined {
+  const url = resolveProxyUrl();
+  if (!url) return undefined;
+  let agent = dispatchers.get(url);
+  if (!agent) {
+    agent = new ProxyAgent(url);
+    dispatchers.set(url, agent);
+  }
+  return agent;
+}
 
 export async function httpGet(url: string, init: RequestInit = {}): Promise<Response> {
   const headers = {
@@ -15,7 +31,7 @@ export async function httpGet(url: string, init: RequestInit = {}): Promise<Resp
     const res = await undiciFetch(url, {
       ...init,
       headers,
-      dispatcher,
+      dispatcher: getDispatcher(),
       redirect: "follow",
     });
     return res as unknown as Response;
