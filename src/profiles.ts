@@ -95,6 +95,12 @@ export const PROFILES = {
       workplaceTypes: ["Remote"],
       commitmentTypes: [...COMMITMENT_TYPES],
       dateFetchedPastNDays: 4,
+      departments: [
+        "Engineering",
+        "Software Development",
+        "Information Technology",
+        "Data and Analytics",
+      ],
       roleYoeRange: [2, 6],
       roleTypes: ["Individual Contributor"],
       securityClearances: ["None"],
