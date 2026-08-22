@@ -31,6 +31,9 @@ const ENGINEERING_DEPARTMENTS = [
   "Information Technology",
 ] as const;
 
+/** Hiring Cafe "Date Posted" window (days). */
+const HC_DATE_FETCHED_PAST_N_DAYS = 2;
+
 export type BuiltinSearch = {
   path: string;
   params: Record<string, string>;
@@ -47,13 +50,13 @@ export type Profile = {
 };
 
 const BUILTIN_USA = {
-  daysSinceUpdated: "3",
+  daysSinceUpdated: "1",
   country: "USA",
   allLocations: "true",
 } as const;
 
 const BUILTIN_GBR = {
-  daysSinceUpdated: "3",
+  daysSinceUpdated: "1",
   city: "",
   state: "",
   country: "GBR",
@@ -66,7 +69,7 @@ export const PROFILES = {
     hiringCafe: {
       locations: [US_REMOTE],
       commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: 4,
+      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
       departments: [...ENGINEERING_DEPARTMENTS],
       roleYoeRange: [5, 10],
       roleTypes: ["Individual Contributor"],
@@ -94,7 +97,7 @@ export const PROFILES = {
     hiringCafe: {
       locations: [US_REMOTE],
       commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: 4,
+      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
       departments: [...ENGINEERING_DEPARTMENTS],
       roleYoeRange: [4, 8],
       roleTypes: ["Individual Contributor"],
@@ -123,7 +126,7 @@ export const PROFILES = {
     hiringCafe: {
       workplaceTypes: ["Remote"],
       commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: 4,
+      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
       departments: [
         "Engineering",
         "Software Development",
