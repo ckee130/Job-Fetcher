@@ -124,6 +124,11 @@ async function enrichWithApplyUrls(jobs: JobRecord[]): Promise<void> {
   }
 }
 
+/** Resolve employer apply URLs for Built In listings (detail page required). */
+export async function enrichBuiltinApplyUrls(jobs: JobRecord[]): Promise<void> {
+  await enrichWithApplyUrls(jobs);
+}
+
 export async function fetchBuiltinJobs(): Promise<FetchResult> {
   const jobs: JobRecord[] = [];
   const seenIds = new Set<string>();
@@ -169,8 +174,6 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
       }
       progress(`Built In page ${page}/${maxPage}: ${jobs.length} jobs so far`);
     }
-
-    await enrichWithApplyUrls(jobs);
 
     return { source: "builtin", jobs, pagesFetched };
   } catch (err) {

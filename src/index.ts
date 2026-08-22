@@ -6,8 +6,8 @@ import { config } from "./config.js";
 import { dedupeCrossPlatform } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
-import { appendJobsToSheet } from "./sheets.js";
-import { fetchBuiltinJobs } from "./sources/builtin.js";
+import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
+import { enrichBuiltinApplyUrls, fetchBuiltinJobs } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import type { JobRecord, JobSource, RunSummary } from "./types.js";
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   }
 
   if (sources.includes("builtin")) {
-    progressPhase("Fetching Built In");
+    progressPhase("Fetching Built In (listings only)");
     const result = await fetchBuiltinJobs();
     bySource.builtin = {
       fetched: result.jobs.length,
@@ -84,23 +84,39 @@ async function main(): Promise<void> {
     else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
   }
 
-  // Cross-platform dedupe (same employer URL or same company + role)
+  progressPhase("Filtering");
   const { kept: crossPlatformJobs, skipped: skippedCrossPlatform } =
     dedupeCrossPlatform(allFetched);
   if (skippedCrossPlatform > 0) {
     progress(`cross-platform dedupe: skipped ${skippedCrossPlatform} duplicate(s)`);
   }
 
-  progressPhase("Filtering");
   const { kept: titleFilteredJobs, skipped: skippedByTitle } =
     filterJobsByTitle(crossPlatformJobs);
   progress(
-    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle} (of ${crossPlatformJobs.length} after cross-platform dedupe)`,
+    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle}`,
   );
 
-  progressPhase("Google Sheets");
-  const sheets = await appendJobsToSheet(titleFilteredJobs);
-  const newJobs = sheets.uploadedJobs;
+  progressPhase("Upload prep (CV + sheet)");
+  const uploadFilter = await filterJobsForUpload(titleFilteredJobs);
+  const toUpload = uploadFilter.toUpload;
+
+  if (toUpload.length > 0) {
+    progressPhase("Resolving apply URLs");
+    const builtinToEnrich = toUpload.filter((j) => j.source === "builtin");
+    if (builtinToEnrich.length > 0) {
+      progress(`fetching employer URLs for ${builtinToEnrich.length} Built In job(s)…`);
+      await enrichBuiltinApplyUrls(builtinToEnrich);
+    }
+  }
+
+  progressPhase("Google Sheets upload");
+  const appended =
+    toUpload.length > 0 && !uploadFilter.error
+      ? await appendRowsToSheet(toUpload)
+      : { appended: 0, uploadedJobs: [] as JobRecord[], error: uploadFilter.error };
+
+  const newJobs = appended.uploadedJobs;
   bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;
   bySource.builtin.newCount = newJobs.filter((j) => j.source === "builtin").length;
 
@@ -112,13 +128,21 @@ async function main(): Promise<void> {
     finishedAt,
     fetchedTotal: titleFilteredJobs.length,
     newJobs,
-    skippedDuplicates: sheets.skippedDuplicates,
-    skippedByCv: sheets.skippedByCv,
+    skippedDuplicates: uploadFilter.skippedDuplicates,
+    skippedByCv: uploadFilter.skippedByCv,
     skippedByTitle,
     skippedCrossPlatform,
     bySource,
     outputPath,
-    sheets,
+    sheets: {
+      appended: appended.appended,
+      skippedDuplicates: uploadFilter.skippedDuplicates,
+      skippedByCv: uploadFilter.skippedByCv,
+      uploadedJobs: newJobs,
+      skipped: uploadFilter.skipped,
+      spreadsheetId: uploadFilter.spreadsheetId,
+      error: appended.error ?? uploadFilter.error,
+    },
   };
 
   printRunSummary(summary);
@@ -127,7 +151,8 @@ async function main(): Promise<void> {
   const failed =
     (sources.includes("hiringcafe") && bySource.hiringcafe.error) ||
     (sources.includes("builtin") && bySource.builtin.error) ||
-    sheets.error;
+    appended.error ||
+    uploadFilter.error;
   if (failed) process.exitCode = 1;
 }
 

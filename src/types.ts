@@ -35,6 +35,9 @@ export type RunSummary = {
   outputPath: string;
   sheets?: {
     appended: number;
+    skippedDuplicates?: number;
+    skippedByCv?: number;
+    uploadedJobs?: JobRecord[];
     skipped: boolean;
     spreadsheetId?: string;
     error?: string;

@@ -166,13 +166,22 @@ export function filterJobsBySheetCompanyRoles(
   return { toUpload, skippedDuplicates };
 }
 
+export type UploadFilterResult = {
+  toUpload: JobRecord[];
+  skippedDuplicates: number;
+  skippedByCv: number;
+  skipped: boolean;
+  spreadsheetId?: string;
+  error?: string;
+};
+
 /**
- * Dedupe by company+role against Google Sheets, then append.
- * Columns: Company | Role | Job Link | Source | Date (YYYY-MM-DD).
+ * CV dir + sheet company/role checks only (no apply URL needed).
+ * Run this before fetching Built In detail pages.
  */
-export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppendResult> {
+export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilterResult> {
   if (!isSheetsConfigured()) {
-    return { appended: 0, skippedDuplicates: 0, skippedByCv: 0, uploadedJobs: [], skipped: true };
+    return { toUpload: [], skippedDuplicates: 0, skippedByCv: 0, skipped: true };
   }
 
   const spreadsheetId = config.googleSpreadsheetId;
@@ -196,23 +205,39 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
 
     const { toUpload, skippedDuplicates } = filterJobsBySheetCompanyRoles(afterCv, existingKeys);
     progress(
-      `to upload: ${toUpload.length} · skipped (same company + role on sheet): ${skippedDuplicates}`,
+      `will upload ${toUpload.length} · skipped (same company + role on sheet): ${skippedDuplicates}`,
     );
 
-    if (toUpload.length === 0) {
-      return {
-        appended: 0,
-        skippedDuplicates,
-        skippedByCv,
-        uploadedJobs: [],
-        skipped: false,
-        spreadsheetId,
-      };
-    }
+    return { toUpload, skippedDuplicates, skippedByCv, skipped: false, spreadsheetId };
+  } catch (err) {
+    return {
+      toUpload: [],
+      skippedDuplicates: 0,
+      skippedByCv: 0,
+      skipped: false,
+      spreadsheetId,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
 
-    progress(`appending ${toUpload.length} row(s)…`);
+/** Append pre-filtered rows. Sheet must already exist with header. */
+export async function appendRowsToSheet(
+  jobs: JobRecord[],
+): Promise<{ appended: number; uploadedJobs: JobRecord[]; error?: string }> {
+  if (jobs.length === 0) return { appended: 0, uploadedJobs: [] };
+  if (!isSheetsConfigured()) {
+    return { appended: 0, uploadedJobs: [], error: "Google Sheets not configured" };
+  }
+
+  const spreadsheetId = config.googleSpreadsheetId;
+  const sheetName = config.googleSheetName;
+
+  try {
+    const sheets = await getSheetsClient();
+    progress(`appending ${jobs.length} row(s)…`);
     const date = todayDate();
-    const values = toUpload.map((job) => [
+    const values = jobs.map((job) => [
       job.company,
       job.title,
       job.jobLink,
@@ -228,25 +253,48 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       requestBody: { values },
     });
 
-    progress(`appended ${toUpload.length} row(s) with date ${date}`);
-
-    return {
-      appended: toUpload.length,
-      skippedDuplicates,
-      skippedByCv,
-      uploadedJobs: toUpload,
-      skipped: false,
-      spreadsheetId,
-    };
+    progress(`appended ${jobs.length} row(s) with date ${date}`);
+    return { appended: jobs.length, uploadedJobs: jobs };
   } catch (err) {
+    return {
+      appended: 0,
+      uploadedJobs: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/** Filter + append in one call (legacy). Prefer filterJobsForUpload → enrich URLs → appendRowsToSheet. */
+export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppendResult> {
+  const filtered = await filterJobsForUpload(jobs);
+  if (filtered.skipped) {
     return {
       appended: 0,
       skippedDuplicates: 0,
       skippedByCv: 0,
       uploadedJobs: [],
-      skipped: false,
-      spreadsheetId,
-      error: err instanceof Error ? err.message : String(err),
+      skipped: true,
     };
   }
+  if (filtered.error) {
+    return {
+      appended: 0,
+      skippedDuplicates: filtered.skippedDuplicates,
+      skippedByCv: filtered.skippedByCv,
+      uploadedJobs: [],
+      skipped: false,
+      spreadsheetId: filtered.spreadsheetId,
+      error: filtered.error,
+    };
+  }
+  const appended = await appendRowsToSheet(filtered.toUpload);
+  return {
+    appended: appended.appended,
+    skippedDuplicates: filtered.skippedDuplicates,
+    skippedByCv: filtered.skippedByCv,
+    uploadedJobs: appended.uploadedJobs,
+    skipped: false,
+    spreadsheetId: filtered.spreadsheetId,
+    error: appended.error,
+  };
 }
