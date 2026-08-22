@@ -38,6 +38,7 @@ npm run fetch:builtin         # Built In only
 - **Hiring Cafe:** US + Remote, last 2 days, Software/Data/Engineering/IT, 5–10 YoE, IC, no clearance/certs
 - **Built In:** Remote engineering (software / devops / QA / security / automation), mid–expert, updated in last 1 day, USA
 - **Title skips:** manager, director, designer, VP (see `src/filters.ts`)
+- **CV dir skip:** before sheet upload, skip if any filename in `CV_DIR/{sheet}` contains the company name
 - **Cross-platform dedupe:** if Hiring Cafe and Built In both have the same job (same employer apply URL or same company + role), only one is kept — Hiring Cafe wins
 - **Sheet dedupe:** skip only if the same company **and** role title already exist on the sheet; different roles at the same company are uploaded
 
@@ -58,3 +59,4 @@ See `.env.example`:
 - `PAGE_DELAY_MS` — delay between page requests
 - `NOTIFY` — desktop notification on/off
 - `GOOGLE_SPREADSHEET_ID` / `GOOGLE_SHEET_NAME` / `GOOGLE_SERVICE_ACCOUNT_FILE` — Sheets append
+- `CV_DIR` — CV folder path; `{sheet}` → tab name (default example: `D:\remote\CV\{sheet}`)

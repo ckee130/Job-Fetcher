@@ -25,6 +25,7 @@ export type RunSummary = {
   fetchedTotal: number;
   newJobs: JobRecord[];
   skippedDuplicates: number;
+  skippedByCv?: number;
   skippedByTitle?: number;
   skippedCrossPlatform?: number;
   bySource: Record<

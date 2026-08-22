@@ -4,6 +4,7 @@ import path from "node:path";
 import { google, type sheets_v4 } from "googleapis";
 
 import { config } from "./config.js";
+import { filterJobsByCvDir } from "./cv.js";
 import { progress } from "./progress.js";
 import type { JobRecord } from "./types.js";
 
@@ -12,6 +13,7 @@ const HEADER = ["Company", "Role", "Job Link", "Source", "Date"] as const;
 export type SheetsAppendResult = {
   appended: number;
   skippedDuplicates: number;
+  skippedByCv: number;
   uploadedJobs: JobRecord[];
   skipped: boolean;
   spreadsheetId?: string;
@@ -170,7 +172,7 @@ export function filterJobsBySheetCompanyRoles(
  */
 export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppendResult> {
   if (!isSheetsConfigured()) {
-    return { appended: 0, skippedDuplicates: 0, uploadedJobs: [], skipped: true };
+    return { appended: 0, skippedDuplicates: 0, skippedByCv: 0, uploadedJobs: [], skipped: true };
   }
 
   const spreadsheetId = config.googleSpreadsheetId;
@@ -182,19 +184,26 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
+    progress("checking CV directory…");
+    const { kept: afterCv, skipped: skippedByCv, cvDir } = filterJobsByCvDir(jobs, sheetName);
+    if (cvDir && skippedByCv > 0) {
+      progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
+    }
+
     progress("loading existing company + role rows…");
     const existingKeys = await loadExistingCompanyRoles(sheets, spreadsheetId, sheetName);
     progress(`sheet has ${existingKeys.size} company/role row(s)`);
 
-    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanyRoles(jobs, existingKeys);
+    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanyRoles(afterCv, existingKeys);
     progress(
-      `to upload: ${toUpload.length} · skipped (same company + role): ${skippedDuplicates}`,
+      `to upload: ${toUpload.length} · skipped (same company + role on sheet): ${skippedDuplicates}`,
     );
 
     if (toUpload.length === 0) {
       return {
         appended: 0,
         skippedDuplicates,
+        skippedByCv,
         uploadedJobs: [],
         skipped: false,
         spreadsheetId,
@@ -224,6 +233,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     return {
       appended: toUpload.length,
       skippedDuplicates,
+      skippedByCv,
       uploadedJobs: toUpload,
       skipped: false,
       spreadsheetId,
@@ -232,6 +242,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     return {
       appended: 0,
       skippedDuplicates: 0,
+      skippedByCv: 0,
       uploadedJobs: [],
       skipped: false,
       spreadsheetId,

@@ -77,6 +77,8 @@ export const config = {
   googleSpreadsheetId: (process.env.GOOGLE_SPREADSHEET_ID || "").trim(),
   googleSheetName: (process.env.GOOGLE_SHEET_NAME || "Jobs").trim() || "Jobs",
   googleServiceAccountFile: (process.env.GOOGLE_SERVICE_ACCOUNT_FILE || "").trim(),
+  /** CV folder; `{sheet}` → GOOGLE_SHEET_NAME. Skip job if a filename contains the company. */
+  cvDir: (process.env.CV_DIR || "").trim(),
   userAgent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 };

@@ -26,6 +26,9 @@ export function printRunSummary(summary: RunSummary): void {
   if (summary.skippedByTitle) {
     console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
   }
+  if (summary.skippedByCv) {
+    console.log(`  skipped (CV file exists for company): ${summary.skippedByCv}`);
+  }
   if (summary.skippedDuplicates) {
     console.log(`  skipped (same company + role on sheet): ${summary.skippedDuplicates}`);
   }
@@ -67,6 +70,9 @@ export function sendDesktopNotification(summary: RunSummary): void {
   }
   if (summary.skippedByTitle) {
     bodyParts.push(`title-filter ${summary.skippedByTitle}`);
+  }
+  if (summary.skippedByCv) {
+    bodyParts.push(`cv ${summary.skippedByCv}`);
   }
   bodyParts.push(`role-dupes ${summary.skippedDuplicates}`);
   if (summary.sheets && !summary.sheets.skipped && !summary.sheets.error) {

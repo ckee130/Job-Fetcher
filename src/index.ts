@@ -113,6 +113,7 @@ async function main(): Promise<void> {
     fetchedTotal: titleFilteredJobs.length,
     newJobs,
     skippedDuplicates: sheets.skippedDuplicates,
+    skippedByCv: sheets.skippedByCv,
     skippedByTitle,
     skippedCrossPlatform,
     bySource,
