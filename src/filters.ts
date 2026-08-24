@@ -6,6 +6,7 @@ const TITLE_EXCLUDE = [
   /\bdirectors?\b/i,
   /\bdesigners?\b/i,
   /\bvp\b/i,
+  /\badministrators?\b/i,
   /\bowners?\b/i,
 ] as const;
 
