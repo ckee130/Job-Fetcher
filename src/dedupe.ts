@@ -1,4 +1,4 @@
-import { companyRoleKey } from "./sheets.js";
+import { normalizeCompany } from "./sheets.js";
 import type { JobRecord } from "./types.js";
 
 const AGGREGATOR_HOST = /(?:^|\.)hiringcafe\.com$|(?:^|\.)builtin\.com$/i;
@@ -39,7 +39,8 @@ export function crossPlatformKeys(job: JobRecord): string[] {
   const keys: string[] = [];
   const apply = normalizeApplyUrl(job.jobLink);
   if (apply) keys.push(`url:${apply}`);
-  keys.push(`cr:${companyRoleKey(job.company, job.title)}`);
+  const company = normalizeCompany(job.company);
+  if (company) keys.push(`co:${company}`);
   return keys;
 }
 

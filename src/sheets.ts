@@ -29,11 +29,6 @@ export function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Dedupe key: company + role title. */
-export function companyRoleKey(company: string, role: string): string {
-  return `${normalizeText(company)}\0${normalizeText(role)}`;
-}
-
 /** Local calendar date as YYYY-MM-DD (no time). */
 export function todayDate(): string {
   const d = new Date();
@@ -119,44 +114,43 @@ async function ensureHeader(
   }
 }
 
-/** Company+role pairs already on the sheet (normalized). */
-async function loadExistingCompanyRoles(
+/** Company name already on the sheet (normalized). */
+async function loadExistingCompanies(
   sheets: sheets_v4.Sheets,
   spreadsheetId: string,
   sheetName: string,
 ): Promise<Set<string>> {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!A:B`,
+    range: `${sheetName}!A:A`,
   });
   const rows = res.data.values ?? [];
-  const keys = new Set<string>();
+  const companies = new Set<string>();
   for (let i = 0; i < rows.length; i += 1) {
     const company = String(rows[i]?.[0] ?? "").trim();
-    const role = String(rows[i]?.[1] ?? "").trim();
-    if (!company || !role) continue;
+    if (!company) continue;
     if (i === 0 && company.toLowerCase() === "company") continue;
-    keys.add(companyRoleKey(company, role));
+    const key = normalizeCompany(company);
+    if (key) companies.add(key);
   }
-  return keys;
+  return companies;
 }
 
 /**
- * Skip only when the same company + same role title already exists
- * (on the sheet or earlier in this run). Different roles at the same
- * company are all uploaded.
+ * Skip when the company already exists on the sheet or earlier in this run.
+ * Only one row per company — different titles at the same company are ignored.
  */
-export function filterJobsBySheetCompanyRoles(
+export function filterJobsBySheetCompanies(
   jobs: JobRecord[],
-  existingKeys: Set<string>,
+  existingCompanies: Set<string>,
 ): { toUpload: JobRecord[]; skippedDuplicates: number } {
-  const seen = new Set(existingKeys);
+  const seen = new Set(existingCompanies);
   const toUpload: JobRecord[] = [];
   let skippedDuplicates = 0;
 
   for (const job of jobs) {
-    const key = companyRoleKey(job.company, job.title);
-    if (!normalizeText(job.company) || !normalizeText(job.title) || seen.has(key)) {
+    const key = normalizeCompany(job.company);
+    if (!key || seen.has(key)) {
       skippedDuplicates += 1;
       continue;
     }
@@ -177,7 +171,7 @@ export type UploadFilterResult = {
 };
 
 /**
- * CV dir + sheet company/role checks only (no apply URL needed).
+ * CV dir + sheet company check only (no apply URL needed).
  * Run this before fetching Built In detail pages.
  */
 export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilterResult> {
@@ -200,13 +194,13 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
     }
 
-    progress("loading existing company + role rows…");
-    const existingKeys = await loadExistingCompanyRoles(sheets, spreadsheetId, sheetName);
-    progress(`sheet has ${existingKeys.size} company/role row(s)`);
+    progress("loading existing companies…");
+    const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
+    progress(`sheet has ${existingCompanies.size} company row(s)`);
 
-    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanyRoles(afterCv, existingKeys);
+    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(afterCv, existingCompanies);
     progress(
-      `will upload ${toUpload.length} · skipped (same company + role on sheet): ${skippedDuplicates}`,
+      `will upload ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
     );
 
     return { toUpload, skippedDuplicates, skippedByCv, skipped: false, spreadsheetId };

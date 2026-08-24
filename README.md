@@ -50,7 +50,7 @@ Filters are defined in `src/profiles.ts`.
 1. Fetch listings (Built In employer URLs only for jobs that pass filters)
 2. Title filter (manager, director, designer, VP, owner)
 3. Cross-platform dedupe (Hiring Cafe vs Built In)
-4. CV folder check → sheet company+role check
+4. CV folder check → sheet company check (one row per company)
 5. Upload to profile tab with date
 
 ## Output

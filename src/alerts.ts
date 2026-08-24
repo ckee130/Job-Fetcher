@@ -30,7 +30,7 @@ export function printRunSummary(summary: RunSummary): void {
     console.log(`  skipped (CV file exists for company): ${summary.skippedByCv}`);
   }
   if (summary.skippedDuplicates) {
-    console.log(`  skipped (same company + role on sheet): ${summary.skippedDuplicates}`);
+    console.log(`  skipped (company already on sheet): ${summary.skippedDuplicates}`);
   }
 
   for (const source of ["hiringcafe", "builtin"] as const) {
