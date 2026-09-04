@@ -1,7 +1,7 @@
 import { normalizeCompany } from "./sheets.js";
 import type { JobRecord } from "./types.js";
 
-const AGGREGATOR_HOST = /(?:^|\.)hiringcafe\.com$|(?:^|\.)builtin\.com$/i;
+const AGGREGATOR_HOST = /(?:^|\.)builtin\.com$/i;
 
 const TRACKING_PARAMS = [
   "utm_source",
@@ -16,7 +16,7 @@ const TRACKING_PARAMS = [
   "referrer",
 ] as const;
 
-/** Normalize employer apply URL for cross-platform matching. */
+/** Normalize employer apply URL for within-run matching. */
 export function normalizeApplyUrl(url: string): string {
   try {
     const u = new URL(url.trim());
@@ -34,8 +34,8 @@ export function normalizeApplyUrl(url: string): string {
   }
 }
 
-/** Keys that identify the same job across Hiring Cafe and Built In. */
-export function crossPlatformKeys(job: JobRecord): string[] {
+/** Keys that identify the same job across Built In searches in one run. */
+export function withinRunKeys(job: JobRecord): string[] {
   const keys: string[] = [];
   const apply = normalizeApplyUrl(job.jobLink);
   if (apply) keys.push(`url:${apply}`);
@@ -45,10 +45,9 @@ export function crossPlatformKeys(job: JobRecord): string[] {
 }
 
 /**
- * Drop jobs already seen on another platform in this run.
- * Hiring Cafe is listed before Built In, so it wins when both have the same job.
+ * Drop jobs already seen earlier in this run (e.g. same company across Built In searches).
  */
-export function dedupeCrossPlatform(jobs: JobRecord[]): {
+export function dedupeWithinRun(jobs: JobRecord[]): {
   kept: JobRecord[];
   skipped: number;
 } {
@@ -57,7 +56,7 @@ export function dedupeCrossPlatform(jobs: JobRecord[]): {
   let skipped = 0;
 
   for (const job of jobs) {
-    const keys = crossPlatformKeys(job);
+    const keys = withinRunKeys(job);
     if (keys.some((k) => seenKeys.has(k))) {
       skipped += 1;
       continue;

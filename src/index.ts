@@ -3,24 +3,14 @@ import path from "node:path";
 
 import { printRunSummary, sendDesktopNotification } from "./alerts.js";
 import { config } from "./config.js";
-import { dedupeCrossPlatform } from "./dedupe.js";
+import { dedupeWithinRun } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import { enrichBuiltinApplyUrls, fetchBuiltinJobs } from "./sources/builtin.js";
-import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { resolveProfileName, setActiveProfile, getActiveProxyUrl } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
-import type { JobRecord, JobSource, RunSummary } from "./types.js";
-
-function parseSources(argv: string[]): JobSource[] {
-  const flag = argv.find((a) => a.startsWith("--source="));
-  if (!flag) return ["hiringcafe", "builtin"];
-  const value = flag.slice("--source=".length).trim().toLowerCase();
-  if (value === "hiringcafe" || value === "builtin") return [value];
-  if (value === "all") return ["hiringcafe", "builtin"];
-  throw new Error(`Unknown --source=${value}. Use hiringcafe, builtin, or all.`);
-}
+import type { JobRecord, RunSummary } from "./types.js";
 
 function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
   fs.mkdirSync(config.outputDir, { recursive: true });
@@ -47,61 +37,36 @@ function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const profile = setActiveProfile(resolveProfileName(argv));
-  const sources = parseSources(argv);
   const startedAt = new Date().toISOString();
 
-  console.log(`Job fetcher — profile: ${profile.name} · sources: ${sources.join(", ")}`);
+  console.log(`Job fetcher — profile: ${profile.name} · source: builtin`);
   const proxy = getActiveProxyUrl() || config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);
   if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
 
   const bySource: RunSummary["bySource"] = {
-    hiringcafe: { fetched: 0, newCount: 0, pagesFetched: 0 },
     builtin: { fetched: 0, newCount: 0, pagesFetched: 0 },
   };
 
-  const allFetched: JobRecord[] = [];
-
-  if (sources.includes("hiringcafe")) {
-    progressPhase("Fetching Hiring Cafe");
-    const result = await fetchHiringCafeJobs();
-    bySource.hiringcafe = {
-      fetched: result.jobs.length,
-      newCount: 0,
-      pagesFetched: result.pagesFetched,
-      error: result.error,
-    };
-    allFetched.push(...result.jobs);
-    if (result.error) progress(`Hiring Cafe failed: ${result.error}`);
-    else progress(`Hiring Cafe done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
-  }
-
-  if (sources.includes("builtin")) {
-    progressPhase("Fetching Built In (listings only)");
-    const result = await fetchBuiltinJobs();
-    bySource.builtin = {
-      fetched: result.jobs.length,
-      newCount: 0,
-      pagesFetched: result.pagesFetched,
-      error: result.error,
-    };
-    allFetched.push(...result.jobs);
-    if (result.error) progress(`Built In failed: ${result.error}`);
-    else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
-  }
+  progressPhase("Fetching Built In (listings only)");
+  const result = await fetchBuiltinJobs();
+  bySource.builtin = {
+    fetched: result.jobs.length,
+    newCount: 0,
+    pagesFetched: result.pagesFetched,
+    error: result.error,
+  };
+  if (result.error) progress(`Built In failed: ${result.error}`);
+  else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
 
   progressPhase("Filtering");
-  const { kept: crossPlatformJobs, skipped: skippedCrossPlatform } =
-    dedupeCrossPlatform(allFetched);
-  if (skippedCrossPlatform > 0) {
-    progress(`cross-platform dedupe: skipped ${skippedCrossPlatform} duplicate(s)`);
+  const { kept: withinRunJobs, skipped: skippedWithinRun } = dedupeWithinRun(result.jobs);
+  if (skippedWithinRun > 0) {
+    progress(`within-run dedupe: skipped ${skippedWithinRun} duplicate(s)`);
   }
 
-  const { kept: titleFilteredJobs, skipped: skippedByTitle } =
-    filterJobsByTitle(crossPlatformJobs);
-  progress(
-    `title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle}`,
-  );
+  const { kept: titleFilteredJobs, skipped: skippedByTitle } = filterJobsByTitle(withinRunJobs);
+  progress(`title filter: kept ${titleFilteredJobs.length}, skipped ${skippedByTitle}`);
 
   progressPhase("Upload prep (CV + sheet)");
   const uploadFilter = await filterJobsForUpload(titleFilteredJobs);
@@ -109,11 +74,8 @@ async function main(): Promise<void> {
 
   if (toUpload.length > 0) {
     progressPhase("Resolving apply URLs");
-    const builtinToEnrich = toUpload.filter((j) => j.source === "builtin");
-    if (builtinToEnrich.length > 0) {
-      progress(`fetching employer URLs for ${builtinToEnrich.length} Built In job(s)…`);
-      await enrichBuiltinApplyUrls(builtinToEnrich);
-    }
+    progress(`fetching employer URLs for ${toUpload.length} Built In job(s)…`);
+    await enrichBuiltinApplyUrls(toUpload);
   }
 
   progressPhase("Google Sheets upload");
@@ -123,8 +85,7 @@ async function main(): Promise<void> {
       : { appended: 0, uploadedJobs: [] as JobRecord[], error: uploadFilter.error };
 
   const newJobs = appended.uploadedJobs;
-  bySource.hiringcafe.newCount = newJobs.filter((j) => j.source === "hiringcafe").length;
-  bySource.builtin.newCount = newJobs.filter((j) => j.source === "builtin").length;
+  bySource.builtin.newCount = newJobs.length;
 
   const outputPath = writeOutput(newJobs, titleFilteredJobs);
   const finishedAt = new Date().toISOString();
@@ -137,7 +98,7 @@ async function main(): Promise<void> {
     skippedDuplicates: uploadFilter.skippedDuplicates,
     skippedByCv: uploadFilter.skippedByCv,
     skippedByTitle,
-    skippedCrossPlatform,
+    skippedWithinRun,
     bySource,
     outputPath,
     sheets: {
@@ -154,11 +115,7 @@ async function main(): Promise<void> {
   printRunSummary(summary);
   sendDesktopNotification(summary);
 
-  const failed =
-    (sources.includes("hiringcafe") && bySource.hiringcafe.error) ||
-    (sources.includes("builtin") && bySource.builtin.error) ||
-    appended.error ||
-    uploadFilter.error;
+  const failed = bySource.builtin.error || appended.error || uploadFilter.error;
   if (failed) process.exitCode = 1;
 }
 

@@ -11,17 +11,13 @@ const CYAN = "\x1b[36m";
 
 export function printRunSummary(summary: RunSummary): void {
   const hasErrors =
-    Boolean(summary.bySource.hiringcafe.error) ||
-    Boolean(summary.bySource.builtin.error) ||
-    Boolean(summary.sheets?.error);
+    Boolean(summary.bySource.builtin.error) || Boolean(summary.sheets?.error);
   const tone = hasErrors ? YELLOW : summary.newJobs.length > 0 ? GREEN : CYAN;
 
   console.log("");
   console.log(`${tone}${BOLD}${summary.newJobs.length} new job(s)${RESET}`);
-  if (summary.skippedCrossPlatform) {
-    console.log(
-      `  skipped (duplicate across Hiring Cafe / Built In): ${summary.skippedCrossPlatform}`,
-    );
+  if (summary.skippedWithinRun) {
+    console.log(`  skipped (duplicate within run): ${summary.skippedWithinRun}`);
   }
   if (summary.skippedByTitle) {
     console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
@@ -33,9 +29,8 @@ export function printRunSummary(summary: RunSummary): void {
     console.log(`  skipped (company already on sheet): ${summary.skippedDuplicates}`);
   }
 
-  for (const source of ["hiringcafe", "builtin"] as const) {
-    const s = summary.bySource[source];
-    if (s.error) console.log(`  ${source}: ${RED}${s.error}${RESET}`);
+  if (summary.bySource.builtin.error) {
+    console.log(`  builtin: ${RED}${summary.bySource.builtin.error}${RESET}`);
   }
 
   if (summary.sheets?.skipped) {
@@ -65,8 +60,8 @@ export function sendDesktopNotification(summary: RunSummary): void {
     `Fetched ${summary.fetchedTotal}`,
     `new ${summary.newJobs.length}`,
   ];
-  if (summary.skippedCrossPlatform) {
-    bodyParts.push(`cross-platform ${summary.skippedCrossPlatform}`);
+  if (summary.skippedWithinRun) {
+    bodyParts.push(`within-run ${summary.skippedWithinRun}`);
   }
   if (summary.skippedByTitle) {
     bodyParts.push(`title-filter ${summary.skippedByTitle}`);
@@ -78,7 +73,6 @@ export function sendDesktopNotification(summary: RunSummary): void {
   if (summary.sheets && !summary.sheets.skipped && !summary.sheets.error) {
     bodyParts.push(`sheets +${summary.sheets.appended}`);
   }
-  if (summary.bySource.hiringcafe.error) bodyParts.push("HiringCafe error");
   if (summary.bySource.builtin.error) bodyParts.push("Built In error");
   if (summary.sheets?.error) bodyParts.push("Sheets error");
   const body = bodyParts.join(" · ");

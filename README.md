@@ -1,6 +1,6 @@
 # Job Fetcher
 
-Manual CLI that pulls **new** remote jobs from Hiring Cafe and Built In per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
+Manual CLI that pulls **new** remote jobs from Built In per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
 Three profiles: **Clinton**, **Nathan**, **Andrei** — each with its own search filters, Google Sheet tab, and CV folder.
 
@@ -33,23 +33,21 @@ Or pass `--profile` / set `PROFILE` in `.env`:
 npm run fetch -- --profile=Nathan
 ```
 
-Optional: `--source=hiringcafe` or `--source=builtin` for one source only.
-
 ## Profiles
 
-| Profile | Hiring Cafe | Built In (3 searches each) |
-|---------|-------------|----------------------------|
-| **Clinton** | US remote, 2 days, eng depts, 5–10 YoE | USA: data-engineering + engineering + AI/ML (senior/expert-leader) |
-| **Nathan** | US remote, 2 days, eng depts, 4–8 YoE | USA: data-engineering + engineering + AI/ML (senior) |
-| **Andrei** | Remote, 2 days, 2–6 YoE (no US/dept filter) | GBR: AI/ML + engineering + data-engineering (senior) |
+| Profile | Built In (3 searches each) |
+|---------|----------------------------|
+| **Clinton** | USA: data-engineering + engineering + AI/ML (senior/expert-leader) |
+| **Nathan** | USA: data-engineering + engineering + AI/ML (senior) |
+| **Andrei** | GBR: AI/ML + engineering + data-engineering (senior) |
 
 Filters are defined in `src/profiles.ts`.
 
 ## Pipeline
 
 1. Fetch listings (Built In employer URLs only for jobs that pass filters)
-2. Title filter (manager, director, designer, VP, owner)
-3. Cross-platform dedupe (Hiring Cafe vs Built In)
+2. Within-run dedupe (same company / apply URL across Built In searches)
+3. Title filter (manager, director, designer, VP, owner)
 4. CV folder check → sheet company check (one row per company)
 5. Upload to profile tab with date
 

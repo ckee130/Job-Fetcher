@@ -1,39 +1,5 @@
 import { parseProxyUrl } from "./proxy.js";
 
-const US_REMOTE = {
-  id: "FxY1yZQBoEtHp_8UEq7V",
-  types: ["country"],
-  address_components: [
-    {
-      long_name: "United States",
-      short_name: "US",
-      types: ["country"],
-    },
-  ],
-  formatted_address: "United States",
-  population: 327167434,
-  workplace_types: ["Remote"],
-  options: { flexible_regions: [] as string[] },
-} as const;
-
-const COMMITMENT_TYPES = [
-  "Full Time",
-  "Contract",
-  "Part Time",
-  "Temporary",
-  "Seasonal",
-] as const;
-
-const ENGINEERING_DEPARTMENTS = [
-  "Software Development",
-  "Data and Analytics",
-  "Engineering",
-  "Information Technology",
-] as const;
-
-/** Hiring Cafe "Date Posted" window (days). */
-const HC_DATE_FETCHED_PAST_N_DAYS = 2;
-
 export type BuiltinSearch = {
   path: string;
   params: Record<string, string>;
@@ -44,7 +10,6 @@ export type Profile = {
   name: string;
   /** Per-profile HTTP proxy; falls back to PROXY_URL when unset. */
   proxyUrl?: string;
-  hiringCafe: Record<string, unknown>;
   /** Three Built In saved searches per profile. */
   builtinSearches: BuiltinSearch[];
 };
@@ -66,17 +31,6 @@ const BUILTIN_GBR = {
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
-    hiringCafe: {
-      locations: [US_REMOTE],
-      commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
-      departments: [...ENGINEERING_DEPARTMENTS],
-      roleYoeRange: [5, 10],
-      roleTypes: ["Individual Contributor"],
-      excludeAllLicensesAndCertifications: true,
-      securityClearances: ["None"],
-      sortBy: "date",
-    },
     builtinSearches: [
       {
         path: "/jobs/remote/data-analytics/data-engineering/senior/expert-leader",
@@ -94,17 +48,6 @@ export const PROFILES = {
   },
   Nathan: {
     name: "Nathan",
-    hiringCafe: {
-      locations: [US_REMOTE],
-      commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
-      departments: [...ENGINEERING_DEPARTMENTS],
-      roleYoeRange: [4, 8],
-      roleTypes: ["Individual Contributor"],
-      excludeAllLicensesAndCertifications: true,
-      securityClearances: ["None"],
-      sortBy: "date",
-    },
     builtinSearches: [
       {
         path: "/jobs/remote/data-analytics/data-engineering/senior",
@@ -123,20 +66,6 @@ export const PROFILES = {
   Andrei: {
     name: "Andrei",
     proxyUrl: parseProxyUrl(process.env.ANDREI_PROXY_URL || ""),
-    hiringCafe: {
-      workplaceTypes: ["Remote"],
-      commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
-      departments: [
-        "Engineering",
-        "Software Development",
-        "Information Technology",
-        "Data and Analytics",
-      ],
-      roleYoeRange: [2, 6],
-      roleTypes: ["Individual Contributor"],
-      securityClearances: ["None"],
-    },
     builtinSearches: [
       {
         path: "/jobs/remote/ai-machine-learning/senior",
