@@ -12,6 +12,11 @@ export type Profile = {
   proxyUrl?: string;
   /** Three Built In saved searches per profile. */
   builtinSearches: BuiltinSearch[];
+  /**
+   * Only upload when the company already has a CV file in at least one of
+   * these peer profile folders (e.g. Blake → Clinton or Nathan).
+   */
+  requireCvInProfiles?: readonly string[];
 };
 
 const BUILTIN_USA = {
@@ -28,23 +33,26 @@ const BUILTIN_GBR = {
   allLocations: "true",
 } as const;
 
+/** USA senior/expert-leader searches shared by Clinton and Blake. */
+const CLINTON_BUILTIN_SEARCHES: BuiltinSearch[] = [
+  {
+    path: "/jobs/remote/data-analytics/data-engineering/senior/expert-leader",
+    params: { ...BUILTIN_USA },
+  },
+  {
+    path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior/expert-leader",
+    params: { ...BUILTIN_USA },
+  },
+  {
+    path: "/jobs/remote/ai-machine-learning/senior/expert-leader",
+    params: { ...BUILTIN_USA },
+  },
+];
+
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
-    builtinSearches: [
-      {
-        path: "/jobs/remote/data-analytics/data-engineering/senior/expert-leader",
-        params: { ...BUILTIN_USA },
-      },
-      {
-        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior/expert-leader",
-        params: { ...BUILTIN_USA },
-      },
-      {
-        path: "/jobs/remote/ai-machine-learning/senior/expert-leader",
-        params: { ...BUILTIN_USA },
-      },
-    ],
+    builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
   Nathan: {
     name: "Nathan",
@@ -81,6 +89,12 @@ export const PROFILES = {
       },
     ],
   },
+  Blake: {
+    name: "Blake",
+    /** Same Built In searches as Clinton; only upload companies already in Clinton or Nathan CVs. */
+    requireCvInProfiles: ["Clinton", "Nathan"],
+    builtinSearches: CLINTON_BUILTIN_SEARCHES,
+  },
 } as const satisfies Record<string, Profile>;
 
 export type ProfileName = keyof typeof PROFILES;
@@ -104,7 +118,7 @@ export function setActiveProfile(name: string): Profile {
 export function getActiveProfile(): Profile {
   if (!activeProfile) {
     throw new Error(
-      `No profile selected. Pass --profile=Clinton|Nathan|Andrei (or set PROFILE in .env)`,
+      `No profile selected. Pass --profile=Clinton|Nathan|Andrei|Blake (or set PROFILE in .env)`,
     );
   }
   return activeProfile;
@@ -122,6 +136,6 @@ export function resolveProfileName(argv: string[]): string {
   const fromEnv = (process.env.PROFILE || "").trim();
   if (fromEnv) return fromEnv;
   throw new Error(
-    `Missing profile. Pass --profile=Clinton|Nathan|Andrei or set PROFILE in .env`,
+    `Missing profile. Pass --profile=Clinton|Nathan|Andrei|Blake or set PROFILE in .env`,
   );
 }

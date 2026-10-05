@@ -4,7 +4,7 @@ import path from "node:path";
 import { google, type sheets_v4 } from "googleapis";
 
 import { config } from "./config.js";
-import { filterJobsByCvDir } from "./cv.js";
+import { filterJobsByCvDir, filterJobsRequiringPeerCv } from "./cv.js";
 import { progress } from "./progress.js";
 import { getActiveProfile } from "./profiles.js";
 import type { JobRecord } from "./types.js";
@@ -15,6 +15,7 @@ export type SheetsAppendResult = {
   appended: number;
   skippedDuplicates: number;
   skippedByCv: number;
+  skippedByPeerCv: number;
   uploadedJobs: JobRecord[];
   skipped: boolean;
   spreadsheetId?: string;
@@ -165,6 +166,7 @@ export type UploadFilterResult = {
   toUpload: JobRecord[];
   skippedDuplicates: number;
   skippedByCv: number;
+  skippedByPeerCv: number;
   skipped: boolean;
   spreadsheetId?: string;
   error?: string;
@@ -176,11 +178,18 @@ export type UploadFilterResult = {
  */
 export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilterResult> {
   if (!isSheetsConfigured()) {
-    return { toUpload: [], skippedDuplicates: 0, skippedByCv: 0, skipped: true };
+    return {
+      toUpload: [],
+      skippedDuplicates: 0,
+      skippedByCv: 0,
+      skippedByPeerCv: 0,
+      skipped: true,
+    };
   }
 
   const spreadsheetId = config.googleSpreadsheetId;
-  const sheetName = getActiveProfile().name;
+  const profile = getActiveProfile();
+  const sheetName = profile.name;
 
   try {
     progress("connecting to Google Sheets…");
@@ -194,21 +203,47 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
     }
 
+    let afterPeer = afterCv;
+    let skippedByPeerCv = 0;
+    const peerNames = profile.requireCvInProfiles ?? [];
+    if (peerNames.length > 0) {
+      progress(`checking peer CV folders (${peerNames.join(", ")})…`);
+      const peerFilter = filterJobsRequiringPeerCv(afterCv, peerNames);
+      afterPeer = peerFilter.kept;
+      skippedByPeerCv = peerFilter.skipped;
+      if (skippedByPeerCv > 0) {
+        progress(
+          `skipped ${skippedByPeerCv} job(s) — company not in ${peerNames.join(" or ")} CV folder`,
+        );
+      }
+    }
+
     progress("loading existing companies…");
     const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
     progress(`sheet has ${existingCompanies.size} company row(s)`);
 
-    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(afterCv, existingCompanies);
+    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(
+      afterPeer,
+      existingCompanies,
+    );
     progress(
       `will upload ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
     );
 
-    return { toUpload, skippedDuplicates, skippedByCv, skipped: false, spreadsheetId };
+    return {
+      toUpload,
+      skippedDuplicates,
+      skippedByCv,
+      skippedByPeerCv,
+      skipped: false,
+      spreadsheetId,
+    };
   } catch (err) {
     return {
       toUpload: [],
       skippedDuplicates: 0,
       skippedByCv: 0,
+      skippedByPeerCv: 0,
       skipped: false,
       spreadsheetId,
       error: err instanceof Error ? err.message : String(err),
@@ -267,6 +302,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       appended: 0,
       skippedDuplicates: 0,
       skippedByCv: 0,
+      skippedByPeerCv: 0,
       uploadedJobs: [],
       skipped: true,
     };
@@ -276,6 +312,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       appended: 0,
       skippedDuplicates: filtered.skippedDuplicates,
       skippedByCv: filtered.skippedByCv,
+      skippedByPeerCv: filtered.skippedByPeerCv,
       uploadedJobs: [],
       skipped: false,
       spreadsheetId: filtered.spreadsheetId,
@@ -287,6 +324,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     appended: appended.appended,
     skippedDuplicates: filtered.skippedDuplicates,
     skippedByCv: filtered.skippedByCv,
+    skippedByPeerCv: filtered.skippedByPeerCv,
     uploadedJobs: appended.uploadedJobs,
     skipped: false,
     spreadsheetId: filtered.spreadsheetId,

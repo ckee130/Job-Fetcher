@@ -26,6 +26,7 @@ export type RunSummary = {
   newJobs: JobRecord[];
   skippedDuplicates: number;
   skippedByCv?: number;
+  skippedByPeerCv?: number;
   skippedByTitle?: number;
   skippedWithinRun?: number;
   bySource: Record<
@@ -37,6 +38,7 @@ export type RunSummary = {
     appended: number;
     skippedDuplicates?: number;
     skippedByCv?: number;
+    skippedByPeerCv?: number;
     uploadedJobs?: JobRecord[];
     skipped: boolean;
     spreadsheetId?: string;

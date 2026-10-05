@@ -74,3 +74,41 @@ export function filterJobsByCvDir(
 
   return { kept, skipped, cvDir };
 }
+
+export function filterJobsRequiringPeerCv(
+  jobs: JobRecord[],
+  peerProfileNames: readonly string[],
+): { kept: JobRecord[]; skipped: number; peerDirs: string[] } {
+  if (peerProfileNames.length === 0) {
+    return { kept: jobs, skipped: 0, peerDirs: [] };
+  }
+
+  const peerDirs = peerProfileNames
+    .map((name) => resolveCvDir(name))
+    .filter((dir) => Boolean(dir));
+  if (peerDirs.length === 0) {
+    return { kept: jobs, skipped: 0, peerDirs: [] };
+  }
+
+  const peerFilenames = peerDirs.map((dir) => {
+    const filenames = listFilenames(dir);
+    progress(`peer CV dir: ${dir} (${filenames.length} file(s))`);
+    return filenames;
+  });
+
+  const kept: JobRecord[] = [];
+  let skipped = 0;
+
+  for (const job of jobs) {
+    const found = peerFilenames.some((filenames) =>
+      companyHasCvFile(job.company, filenames),
+    );
+    if (!found) {
+      skipped += 1;
+      continue;
+    }
+    kept.push(job);
+  }
+
+  return { kept, skipped, peerDirs };
+}
