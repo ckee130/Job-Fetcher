@@ -197,10 +197,18 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
-    progress("checking CV directory…");
-    const { kept: afterCv, skipped: skippedByCv, cvDir } = filterJobsByCvDir(jobs, sheetName);
-    if (cvDir && skippedByCv > 0) {
-      progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
+    let afterCv = jobs;
+    let skippedByCv = 0;
+    if (profile.skipCvDirCheck) {
+      progress("skipping local CV directory check (sheet-only dedupe)");
+    } else {
+      progress("checking CV directory…");
+      const cvFilter = filterJobsByCvDir(jobs, sheetName);
+      afterCv = cvFilter.kept;
+      skippedByCv = cvFilter.skipped;
+      if (cvFilter.cvDir && skippedByCv > 0) {
+        progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
+      }
     }
 
     let afterPeer = afterCv;

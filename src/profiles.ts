@@ -17,6 +17,8 @@ export type Profile = {
    * these peer profile folders (e.g. Blake → Clinton or Nathan).
    */
   requireCvInProfiles?: readonly string[];
+  /** When true, skip local CV folder dedupe — sheet company check only. */
+  skipCvDirCheck?: boolean;
 };
 
 const BUILTIN_USA = {
@@ -49,6 +51,22 @@ const CLINTON_BUILTIN_SEARCHES: BuiltinSearch[] = [
   },
 ];
 
+/** USA senior searches shared by Nathan and Kami. */
+const NATHAN_BUILTIN_SEARCHES: BuiltinSearch[] = [
+  {
+    path: "/jobs/remote/data-analytics/data-engineering/senior",
+    params: { ...BUILTIN_USA },
+  },
+  {
+    path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior",
+    params: { ...BUILTIN_USA },
+  },
+  {
+    path: "/jobs/remote/ai-machine-learning/senior",
+    params: { ...BUILTIN_USA },
+  },
+];
+
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
@@ -56,20 +74,7 @@ export const PROFILES = {
   },
   Nathan: {
     name: "Nathan",
-    builtinSearches: [
-      {
-        path: "/jobs/remote/data-analytics/data-engineering/senior",
-        params: { ...BUILTIN_USA },
-      },
-      {
-        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior",
-        params: { ...BUILTIN_USA },
-      },
-      {
-        path: "/jobs/remote/ai-machine-learning/senior",
-        params: { ...BUILTIN_USA },
-      },
-    ],
+    builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
   Andrei: {
     name: "Andrei",
@@ -95,6 +100,12 @@ export const PROFILES = {
     requireCvInProfiles: ["Clinton", "Nathan"],
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
+  Kami: {
+    name: "Kami",
+    /** Same Built In searches as Nathan; dedupe against sheet only (no local CV folder). */
+    skipCvDirCheck: true,
+    builtinSearches: NATHAN_BUILTIN_SEARCHES,
+  },
 } as const satisfies Record<string, Profile>;
 
 export type ProfileName = keyof typeof PROFILES;
@@ -118,7 +129,7 @@ export function setActiveProfile(name: string): Profile {
 export function getActiveProfile(): Profile {
   if (!activeProfile) {
     throw new Error(
-      `No profile selected. Pass --profile=Clinton|Nathan|Andrei|Blake (or set PROFILE in .env)`,
+      `No profile selected. Pass --profile=Clinton|Nathan|Andrei|Blake|Kami (or set PROFILE in .env)`,
     );
   }
   return activeProfile;
@@ -136,6 +147,6 @@ export function resolveProfileName(argv: string[]): string {
   const fromEnv = (process.env.PROFILE || "").trim();
   if (fromEnv) return fromEnv;
   throw new Error(
-    `Missing profile. Pass --profile=Clinton|Nathan|Andrei|Blake or set PROFILE in .env`,
+    `Missing profile. Pass --profile=Clinton|Nathan|Andrei|Blake|Kami or set PROFILE in .env`,
   );
 }

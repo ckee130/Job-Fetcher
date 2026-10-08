@@ -9,6 +9,7 @@
     "fetch:nathan": "tsx src/index.ts --profile=Nathan",
     "fetch:andrei": "tsx src/index.ts --profile=Andrei",
     "fetch:blake": "tsx src/index.ts --profile=Blake",
+    "fetch:kami": "tsx src/index.ts --profile=Kami",
     "fetch:builtin": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
