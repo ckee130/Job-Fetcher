@@ -16,6 +16,7 @@ export type SheetsAppendResult = {
   skippedDuplicates: number;
   skippedByCv: number;
   skippedByPeerCv: number;
+  skippedByPeerRole: number;
   uploadedJobs: JobRecord[];
   skipped: boolean;
   spreadsheetId?: string;
@@ -137,6 +138,53 @@ async function loadExistingCompanies(
   return companies;
 }
 
+export function companyRoleKey(company: string, role: string): string {
+  return `${normalizeCompany(company)}||${normalizeText(role)}`;
+}
+
+/** Company+role pairs already on the sheet (normalized). */
+async function loadExistingCompanyRoles(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string,
+): Promise<Set<string>> {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A:B`,
+  });
+  const rows = res.data.values ?? [];
+  const pairs = new Set<string>();
+  for (let i = 0; i < rows.length; i += 1) {
+    const company = String(rows[i]?.[0] ?? "").trim();
+    const role = String(rows[i]?.[1] ?? "").trim();
+    if (!company) continue;
+    if (i === 0 && company.toLowerCase() === "company") continue;
+    const key = companyRoleKey(company, role);
+    if (key !== "||") pairs.add(key);
+  }
+  return pairs;
+}
+
+/**
+ * Skip jobs whose company+role already exists on a peer sheet (Blake → Clinton/Nathan).
+ */
+export function filterJobsByPeerSheetRoles(
+  jobs: JobRecord[],
+  existingCompanyRoles: Set<string>,
+): { kept: JobRecord[]; skipped: number } {
+  const kept: JobRecord[] = [];
+  let skipped = 0;
+  for (const job of jobs) {
+    const key = companyRoleKey(job.company, job.title);
+    if (!key || key === "||" || existingCompanyRoles.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    kept.push(job);
+  }
+  return { kept, skipped };
+}
+
 /**
  * Skip when the company already exists on the sheet or earlier in this run.
  * Only one row per company — different titles at the same company are ignored.
@@ -167,6 +215,7 @@ export type UploadFilterResult = {
   skippedDuplicates: number;
   skippedByCv: number;
   skippedByPeerCv: number;
+  skippedByPeerRole: number;
   skipped: boolean;
   spreadsheetId?: string;
   error?: string;
@@ -183,6 +232,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       skippedDuplicates: 0,
       skippedByCv: 0,
       skippedByPeerCv: 0,
+      skippedByPeerRole: 0,
       skipped: true,
     };
   }
@@ -226,12 +276,38 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       }
     }
 
+    let afterPeerRole = afterPeer;
+    let skippedByPeerRole = 0;
+    if (profile.skipSameRoleOnPeerSheets && peerNames.length > 0) {
+      progress(`checking peer sheets for same company+role (${peerNames.join(", ")})…`);
+      const peerRoles = new Set<string>();
+      for (const peer of peerNames) {
+        try {
+          const roles = await loadExistingCompanyRoles(sheets, spreadsheetId, peer);
+          progress(`  ${peer} sheet: ${roles.size} company+role row(s)`);
+          for (const key of roles) peerRoles.add(key);
+        } catch (err) {
+          progress(
+            `  ${peer} sheet: skipped (${err instanceof Error ? err.message : String(err)})`,
+          );
+        }
+      }
+      const roleFilter = filterJobsByPeerSheetRoles(afterPeer, peerRoles);
+      afterPeerRole = roleFilter.kept;
+      skippedByPeerRole = roleFilter.skipped;
+      if (skippedByPeerRole > 0) {
+        progress(
+          `skipped ${skippedByPeerRole} job(s) — same company+role already on ${peerNames.join(" or ")} sheet`,
+        );
+      }
+    }
+
     progress("loading existing companies…");
     const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
     progress(`sheet has ${existingCompanies.size} company row(s)`);
 
     const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(
-      afterPeer,
+      afterPeerRole,
       existingCompanies,
     );
     progress(
@@ -243,6 +319,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       skippedDuplicates,
       skippedByCv,
       skippedByPeerCv,
+      skippedByPeerRole,
       skipped: false,
       spreadsheetId,
     };
@@ -252,6 +329,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       skippedDuplicates: 0,
       skippedByCv: 0,
       skippedByPeerCv: 0,
+      skippedByPeerRole: 0,
       skipped: false,
       spreadsheetId,
       error: err instanceof Error ? err.message : String(err),
@@ -311,6 +389,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       skippedDuplicates: 0,
       skippedByCv: 0,
       skippedByPeerCv: 0,
+      skippedByPeerRole: 0,
       uploadedJobs: [],
       skipped: true,
     };
@@ -321,6 +400,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
       skippedDuplicates: filtered.skippedDuplicates,
       skippedByCv: filtered.skippedByCv,
       skippedByPeerCv: filtered.skippedByPeerCv,
+      skippedByPeerRole: filtered.skippedByPeerRole,
       uploadedJobs: [],
       skipped: false,
       spreadsheetId: filtered.spreadsheetId,
@@ -333,6 +413,7 @@ export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppend
     skippedDuplicates: filtered.skippedDuplicates,
     skippedByCv: filtered.skippedByCv,
     skippedByPeerCv: filtered.skippedByPeerCv,
+    skippedByPeerRole: filtered.skippedByPeerRole,
     uploadedJobs: appended.uploadedJobs,
     skipped: false,
     spreadsheetId: filtered.spreadsheetId,

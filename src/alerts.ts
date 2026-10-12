@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { config } from "./config.js";
-import type { RunSummary } from "./types.js";
+import type { JobSource, RunSummary } from "./types.js";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -9,10 +9,11 @@ const YELLOW = "\x1b[33m";
 const RED = "\x1b[31m";
 const CYAN = "\x1b[36m";
 
+const SOURCE_ORDER: JobSource[] = ["hiringcafe", "builtin", "jobright"];
+
 export function printRunSummary(summary: RunSummary): void {
   const hasErrors =
-    Boolean(summary.bySource.builtin.error) ||
-    Boolean(summary.bySource.jobright?.error) ||
+    SOURCE_ORDER.some((s) => Boolean(summary.bySource[s]?.error)) ||
     Boolean(summary.sheets?.error);
   const tone = hasErrors ? YELLOW : summary.newJobs.length > 0 ? GREEN : CYAN;
 
@@ -32,25 +33,23 @@ export function printRunSummary(summary: RunSummary): void {
       `  skipped (company not in peer CV folder): ${summary.skippedByPeerCv}`,
     );
   }
+  if (summary.skippedByPeerRole) {
+    console.log(
+      `  skipped (same company+role on peer sheet): ${summary.skippedByPeerRole}`,
+    );
+  }
   if (summary.skippedDuplicates) {
     console.log(`  skipped (company already on sheet): ${summary.skippedDuplicates}`);
   }
 
-  const builtin = summary.bySource.builtin;
-  console.log(
-    `  builtin: fetched ${builtin.fetched}, new ${builtin.newCount}, pages ${builtin.pagesFetched}`,
-  );
-  if (builtin.error) {
-    console.log(`    ${RED}${builtin.error}${RESET}`);
-  }
-
-  const jobright = summary.bySource.jobright;
-  if (jobright) {
+  for (const source of SOURCE_ORDER) {
+    const s = summary.bySource[source];
+    if (!s) continue;
     console.log(
-      `  jobright: fetched ${jobright.fetched}, new ${jobright.newCount}, pages ${jobright.pagesFetched}`,
+      `  ${source}: fetched ${s.fetched}, new ${s.newCount}, pages ${s.pagesFetched}`,
     );
-    if (jobright.error) {
-      console.log(`    ${RED}${jobright.error}${RESET}`);
+    if (s.error) {
+      console.log(`    ${RED}${s.error}${RESET}`);
     }
   }
 
@@ -93,10 +92,14 @@ export function sendDesktopNotification(summary: RunSummary): void {
   if (summary.skippedByPeerCv) {
     bodyParts.push(`peer-cv ${summary.skippedByPeerCv}`);
   }
+  if (summary.skippedByPeerRole) {
+    bodyParts.push(`peer-role ${summary.skippedByPeerRole}`);
+  }
   bodyParts.push(`role-dupes ${summary.skippedDuplicates}`);
   if (summary.sheets && !summary.sheets.skipped && !summary.sheets.error) {
     bodyParts.push(`sheets +${summary.sheets.appended}`);
   }
+  if (summary.bySource.hiringcafe?.error) bodyParts.push("HiringCafe error");
   if (summary.bySource.builtin.error) bodyParts.push("Built In error");
   if (summary.bySource.jobright?.error) bodyParts.push("JobRight error");
   if (summary.sheets?.error) bodyParts.push("Sheets error");

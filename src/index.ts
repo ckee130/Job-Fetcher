@@ -7,11 +7,30 @@ import { dedupeWithinRun } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
-import { enrichBuiltinApplyUrls, fetchBuiltinJobs } from "./sources/builtin.js";
+import {
+  closeBuiltinBrowser,
+  enrichBuiltinApplyUrls,
+  fetchBuiltinJobs,
+  isBuiltinListingLink,
+} from "./sources/builtin.js";
+import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { fetchJobrightJobs } from "./sources/jobright.js";
 import { resolveProfileName, setActiveProfile, getActiveProxyUrl } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
-import type { JobRecord, JobSource, RunSummary } from "./types.js";
+import type { FetchResult, JobRecord, JobSource, RunSummary } from "./types.js";
+
+/**
+ * Source priority (fetch + within-run dedupe order):
+ * 1. Hiring Cafe  2. Built In  3. JobRight
+ * Earlier sources win when the same company/URL appears.
+ */
+const ENABLE_HIRINGCAFE = true;
+const ENABLE_BUILTIN = true;
+const ENABLE_JOBRIGHT = true;
+
+function skippedSource(source: JobSource): FetchResult {
+  return { source, jobs: [], pagesFetched: 0 };
+}
 
 function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
   fs.mkdirSync(config.outputDir, { recursive: true });
@@ -44,47 +63,93 @@ async function main(): Promise<void> {
   const profile = setActiveProfile(resolveProfileName(argv));
   const startedAt = new Date().toISOString();
 
-  console.log(`Job fetcher — profile: ${profile.name} · sources: builtin + jobright`);
+  const enabled = [
+    ENABLE_HIRINGCAFE && "hiringcafe",
+    ENABLE_BUILTIN && "builtin",
+    ENABLE_JOBRIGHT && "jobright",
+  ].filter(Boolean);
+  console.log(
+    `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}`,
+  );
   const proxy = getActiveProxyUrl() || config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);
   if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
 
   const bySource: RunSummary["bySource"] = {
+    hiringcafe: emptySourceStats(),
     builtin: emptySourceStats(),
     jobright: emptySourceStats(),
   };
 
-  progressPhase("Fetching Built In (listings only)");
-  const builtinResult = await fetchBuiltinJobs();
-  bySource.builtin = {
-    fetched: builtinResult.jobs.length,
-    newCount: 0,
-    pagesFetched: builtinResult.pagesFetched,
-    error: builtinResult.error,
-  };
-  if (builtinResult.error) progress(`Built In failed: ${builtinResult.error}`);
-  else {
-    progress(
-      `Built In done — ${builtinResult.jobs.length} jobs, ${builtinResult.pagesFetched} pages`,
-    );
+  // Hiring Cafe first so it wins within-run company/URL dedupe against other sources.
+  let hiringCafeResult: FetchResult;
+  if (ENABLE_HIRINGCAFE) {
+    progressPhase("Fetching Hiring Cafe");
+    hiringCafeResult = await fetchHiringCafeJobs();
+    bySource.hiringcafe = {
+      fetched: hiringCafeResult.jobs.length,
+      newCount: 0,
+      pagesFetched: hiringCafeResult.pagesFetched,
+      error: hiringCafeResult.error,
+    };
+    if (hiringCafeResult.error) progress(`Hiring Cafe failed: ${hiringCafeResult.error}`);
+    else {
+      progress(
+        `Hiring Cafe done — ${hiringCafeResult.jobs.length} jobs, ${hiringCafeResult.pagesFetched} pages`,
+      );
+    }
+  } else {
+    hiringCafeResult = skippedSource("hiringcafe");
+    progress("Hiring Cafe skipped (ENABLE_HIRINGCAFE=false)");
   }
 
-  progressPhase("Fetching JobRight (recommendations)");
-  const jobrightResult = await fetchJobrightJobs();
-  bySource.jobright = {
-    fetched: jobrightResult.jobs.length,
-    newCount: 0,
-    pagesFetched: jobrightResult.pagesFetched,
-    error: jobrightResult.error,
-  };
-  if (jobrightResult.error) progress(`JobRight failed: ${jobrightResult.error}`);
-  else {
-    progress(
-      `JobRight done — ${jobrightResult.jobs.length} jobs, ${jobrightResult.pagesFetched} pages`,
-    );
+  let builtinResult: FetchResult;
+  if (ENABLE_BUILTIN) {
+    progressPhase("Fetching Built In (listings only)");
+    builtinResult = await fetchBuiltinJobs();
+    bySource.builtin = {
+      fetched: builtinResult.jobs.length,
+      newCount: 0,
+      pagesFetched: builtinResult.pagesFetched,
+      error: builtinResult.error,
+    };
+    if (builtinResult.error) progress(`Built In failed: ${builtinResult.error}`);
+    else {
+      progress(
+        `Built In done — ${builtinResult.jobs.length} jobs, ${builtinResult.pagesFetched} pages`,
+      );
+    }
+  } else {
+    builtinResult = skippedSource("builtin");
+    progress("Built In skipped (ENABLE_BUILTIN=false)");
   }
 
-  const allFetched = [...builtinResult.jobs, ...jobrightResult.jobs];
+  let jobrightResult: FetchResult;
+  if (ENABLE_JOBRIGHT) {
+    progressPhase("Fetching JobRight (recommendations)");
+    jobrightResult = await fetchJobrightJobs();
+    bySource.jobright = {
+      fetched: jobrightResult.jobs.length,
+      newCount: 0,
+      pagesFetched: jobrightResult.pagesFetched,
+      error: jobrightResult.error,
+    };
+    if (jobrightResult.error) progress(`JobRight failed: ${jobrightResult.error}`);
+    else {
+      progress(
+        `JobRight done — ${jobrightResult.jobs.length} jobs, ${jobrightResult.pagesFetched} pages`,
+      );
+    }
+  } else {
+    jobrightResult = skippedSource("jobright");
+    progress("JobRight skipped (ENABLE_JOBRIGHT=false)");
+  }
+
+  const allFetched = [
+    ...hiringCafeResult.jobs,
+    ...builtinResult.jobs,
+    ...jobrightResult.jobs,
+  ];
 
   progressPhase("Filtering");
   const { kept: withinRunJobs, skipped: skippedWithinRun } = dedupeWithinRun(allFetched);
@@ -106,10 +171,19 @@ async function main(): Promise<void> {
     await enrichBuiltinApplyUrls(builtinToEnrich);
   }
 
+  // Never upload Built In listing URLs — only employer apply links.
+  const uploadReady = toUpload.filter((j) => !isBuiltinListingLink(j));
+  const skippedBuiltinListing = toUpload.length - uploadReady.length;
+  if (skippedBuiltinListing > 0) {
+    progress(
+      `skipped ${skippedBuiltinListing} Built In job(s) without employer apply URL (not uploaded)`,
+    );
+  }
+
   progressPhase("Google Sheets upload");
   const appended =
-    toUpload.length > 0 && !uploadFilter.error
-      ? await appendRowsToSheet(toUpload)
+    uploadReady.length > 0 && !uploadFilter.error
+      ? await appendRowsToSheet(uploadReady)
       : { appended: 0, uploadedJobs: [] as JobRecord[], error: uploadFilter.error };
 
   const newJobs = appended.uploadedJobs;
@@ -128,6 +202,7 @@ async function main(): Promise<void> {
     skippedDuplicates: uploadFilter.skippedDuplicates,
     skippedByCv: uploadFilter.skippedByCv,
     skippedByPeerCv: uploadFilter.skippedByPeerCv,
+    skippedByPeerRole: uploadFilter.skippedByPeerRole,
     skippedByTitle,
     skippedWithinRun,
     bySource,
@@ -137,6 +212,7 @@ async function main(): Promise<void> {
       skippedDuplicates: uploadFilter.skippedDuplicates,
       skippedByCv: uploadFilter.skippedByCv,
       skippedByPeerCv: uploadFilter.skippedByPeerCv,
+      skippedByPeerRole: uploadFilter.skippedByPeerRole,
       uploadedJobs: newJobs,
       skipped: uploadFilter.skipped,
       spreadsheetId: uploadFilter.spreadsheetId,
@@ -148,14 +224,18 @@ async function main(): Promise<void> {
   sendDesktopNotification(summary);
 
   const failed =
+    bySource.hiringcafe.error ||
     bySource.builtin.error ||
     bySource.jobright.error ||
     appended.error ||
     uploadFilter.error;
   if (failed) process.exitCode = 1;
+
+  await closeBuiltinBrowser();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error("Fatal:", err);
+  await closeBuiltinBrowser();
   process.exit(1);
 });

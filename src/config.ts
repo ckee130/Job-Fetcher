@@ -40,6 +40,21 @@ export const config = {
   jobrightMaxJobs: intEnv("JOBRIGHT_MAX_JOBS", 100),
   /** Delay between JobRight recommendation pages (rate limits are strict). */
   jobrightPageDelayMs: intEnv("JOBRIGHT_PAGE_DELAY_MS", 7000),
+  /**
+   * How long to wait for a manual Hiring Cafe bot check in the headed browser (ms).
+   * Default 5 minutes.
+   */
+  hiringCafeChallengeTimeoutMs: intEnv("HIRINGCAFE_CHALLENGE_TIMEOUT_MS", 300_000),
+  /**
+   * Use PROXY_URL for the Hiring Cafe browser. Default off — datacenter proxies often trigger 403.
+   */
+  hiringCafeUseProxy: boolEnv("HIRINGCAFE_USE_PROXY", false),
+  /** Quiet wait between Built In login checks (ms). Default 1 minute. */
+  builtinLoginWaitMs: intEnv("BUILTIN_LOGIN_WAIT_MS", 60_000),
+  /** How many times to wait-then-check for Built In login. */
+  builtinLoginAttempts: intEnv("BUILTIN_LOGIN_ATTEMPTS", 5),
+  /** Parallel headed tabs for Built In apply-URL resolution after login. */
+  builtinApplyConcurrency: intEnv("BUILTIN_APPLY_CONCURRENCY", 4),
   userAgent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 };

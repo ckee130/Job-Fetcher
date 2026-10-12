@@ -1,4 +1,4 @@
-export type JobSource = "builtin" | "jobright";
+export type JobSource = "hiringcafe" | "builtin" | "jobright";
 
 export type JobRecord = {
   company: string;
@@ -6,7 +6,7 @@ export type JobRecord = {
   /** Prefer employer apply URL; falls back to source listing URL. */
   jobLink: string;
   source: JobSource;
-  /** Aggregator listing URL (builtin.com) when jobLink is the employer URL. */
+  /** Aggregator listing URL when jobLink is the employer URL. */
   listingUrl?: string;
   /** Stable id used for dedupe when present */
   externalId?: string;
@@ -27,6 +27,7 @@ export type RunSummary = {
   skippedDuplicates: number;
   skippedByCv?: number;
   skippedByPeerCv?: number;
+  skippedByPeerRole?: number;
   skippedByTitle?: number;
   skippedWithinRun?: number;
   bySource: Record<
@@ -39,6 +40,7 @@ export type RunSummary = {
     skippedDuplicates?: number;
     skippedByCv?: number;
     skippedByPeerCv?: number;
+    skippedByPeerRole?: number;
     uploadedJobs?: JobRecord[];
     skipped: boolean;
     spreadsheetId?: string;

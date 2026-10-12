@@ -1,5 +1,39 @@
 import { parseProxyUrl } from "./proxy.js";
 
+const US_REMOTE = {
+  id: "FxY1yZQBoEtHp_8UEq7V",
+  types: ["country"],
+  address_components: [
+    {
+      long_name: "United States",
+      short_name: "US",
+      types: ["country"],
+    },
+  ],
+  formatted_address: "United States",
+  population: 327167434,
+  workplace_types: ["Remote"],
+  options: { flexible_regions: [] as string[] },
+} as const;
+
+const COMMITMENT_TYPES = [
+  "Full Time",
+  "Contract",
+  "Part Time",
+  "Temporary",
+  "Seasonal",
+] as const;
+
+const ENGINEERING_DEPARTMENTS = [
+  "Software Development",
+  "Data and Analytics",
+  "Engineering",
+  "Information Technology",
+] as const;
+
+/** Hiring Cafe "Date Posted" window (days). */
+const HC_DATE_FETCHED_PAST_N_DAYS = 2;
+
 export type BuiltinSearch = {
   path: string;
   params: Record<string, string>;
@@ -10,6 +44,8 @@ export type Profile = {
   name: string;
   /** Per-profile HTTP proxy; falls back to PROXY_URL when unset. */
   proxyUrl?: string;
+  /** Hiring Cafe searchState payload (per profile). */
+  hiringCafe: Record<string, unknown>;
   /** Three Built In saved searches per profile. */
   builtinSearches: BuiltinSearch[];
   /**
@@ -17,6 +53,11 @@ export type Profile = {
    * these peer profile folders (e.g. Blake → Clinton or Nathan).
    */
   requireCvInProfiles?: readonly string[];
+  /**
+   * When true (with requireCvInProfiles), also skip jobs whose company+role
+   * already exists on a peer Google Sheet tab.
+   */
+  skipSameRoleOnPeerSheets?: boolean;
   /** When true, skip local CV folder dedupe — sheet company check only. */
   skipCvDirCheck?: boolean;
 };
@@ -67,18 +108,58 @@ const NATHAN_BUILTIN_SEARCHES: BuiltinSearch[] = [
   },
 ];
 
+const CLINTON_HIRING_CAFE = {
+  locations: [US_REMOTE],
+  commitmentTypes: [...COMMITMENT_TYPES],
+  dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
+  departments: [...ENGINEERING_DEPARTMENTS],
+  roleYoeRange: [5, 10],
+  roleTypes: ["Individual Contributor"],
+  excludeAllLicensesAndCertifications: true,
+  securityClearances: ["None"],
+  sortBy: "date",
+} as const;
+
+const NATHAN_HIRING_CAFE = {
+  locations: [US_REMOTE],
+  commitmentTypes: [...COMMITMENT_TYPES],
+  dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
+  departments: [...ENGINEERING_DEPARTMENTS],
+  roleYoeRange: [4, 8],
+  roleTypes: ["Individual Contributor"],
+  excludeAllLicensesAndCertifications: true,
+  securityClearances: ["None"],
+  sortBy: "date",
+} as const;
+
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
+    hiringCafe: CLINTON_HIRING_CAFE,
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
   Nathan: {
     name: "Nathan",
+    hiringCafe: NATHAN_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
   Andrei: {
     name: "Andrei",
     proxyUrl: parseProxyUrl(process.env.ANDREI_PROXY_URL || ""),
+    hiringCafe: {
+      workplaceTypes: ["Remote"],
+      commitmentTypes: [...COMMITMENT_TYPES],
+      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
+      departments: [
+        "Engineering",
+        "Software Development",
+        "Information Technology",
+        "Data and Analytics",
+      ],
+      roleYoeRange: [2, 6],
+      roleTypes: ["Individual Contributor"],
+      securityClearances: ["None"],
+    },
     builtinSearches: [
       {
         path: "/jobs/remote/ai-machine-learning/senior",
@@ -96,14 +177,18 @@ export const PROFILES = {
   },
   Blake: {
     name: "Blake",
-    /** Same Built In searches as Clinton; only upload companies already in Clinton or Nathan CVs. */
+    /** Same searches as Clinton; company must exist in Clinton/Nathan CVs. */
     requireCvInProfiles: ["Clinton", "Nathan"],
+    /** Skip when Clinton or Nathan sheet already has the same company + role. */
+    skipSameRoleOnPeerSheets: true,
+    hiringCafe: CLINTON_HIRING_CAFE,
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
   Kami: {
     name: "Kami",
-    /** Same Built In searches as Nathan; dedupe against sheet only (no local CV folder). */
+    /** Same searches as Nathan; dedupe against sheet only (no local CV folder). */
     skipCvDirCheck: true,
+    hiringCafe: NATHAN_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
 } as const satisfies Record<string, Profile>;

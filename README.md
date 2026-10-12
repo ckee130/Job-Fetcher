@@ -1,8 +1,8 @@
 # Job Fetcher
 
-Manual CLI that pulls **new** remote jobs from **Built In** and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
+Manual CLI that pulls **new** remote jobs from **Hiring Cafe**, **Built In**, and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
-Five profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Kami** — each with its own Built In search filters and Google Sheet tab (most also use a local CV folder). JobRight recommendations come from one shared account (filters live on JobRight).
+Five profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Kami** — each with its own Hiring Cafe + Built In search filters and Google Sheet tab (most also use a local CV folder). JobRight recommendations come from one shared account (filters live on JobRight).
 
 ## Setup
 
@@ -20,6 +20,10 @@ One spreadsheet; each profile writes to a **tab named after the profile** (Clint
 ### JobRight
 
 Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`). Configure your job filters once in the JobRight UI (Confirm) — every profile run fetches that account’s recommendations.
+
+### Hiring Cafe
+
+Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). Proxy is off for this browser by default (`HIRINGCAFE_USE_PROXY=0`) because datacenter proxies often get 403.
 
 ## Run
 
@@ -41,19 +45,19 @@ npm run fetch -- --profile=Nathan
 
 ## Profiles
 
-| Profile | Built In (3 searches each) |
-|---------|----------------------------|
-| **Clinton** | USA: data-engineering + engineering + AI/ML (senior/expert-leader) |
-| **Nathan** | USA: data-engineering + engineering + AI/ML (senior) |
-| **Andrei** | GBR: AI/ML + engineering + data-engineering (senior) |
-| **Blake** | Same searches as Clinton; only uploads companies that already have a CV under Clinton or Nathan |
-| **Kami** | Same searches as Nathan; sheet-only company dedupe (no local CV folder check) |
+| Profile | Hiring Cafe + Built In |
+|---------|------------------------|
+| **Clinton** | US remote eng/data; YoE 5–10; Built In senior/expert-leader |
+| **Nathan** | US remote eng/data; YoE 4–8; Built In senior |
+| **Andrei** | Remote eng/data; YoE 2–6; Built In GBR senior |
+| **Blake** | Same as Clinton; only uploads companies already in Clinton or Nathan CVs |
+| **Kami** | Same as Nathan; sheet-only company dedupe (no local CV folder check) |
 
 Filters are defined in `src/profiles.ts`. JobRight uses the account’s saved criteria for all profiles.
 
 ## Pipeline
 
-1. Fetch Built In listings + JobRight recommendations
+1. Fetch Hiring Cafe → Built In → JobRight (Hiring Cafe wins within-run company/URL dedupe)
 2. Within-run dedupe (same company / apply URL across sources)
 3. Title filter (manager, director, designer, VP, owner)
 4. CV folder check (skipped for Kami) → peer CV check (Blake only) → sheet company check (one row per company)
