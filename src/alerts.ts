@@ -11,7 +11,9 @@ const CYAN = "\x1b[36m";
 
 export function printRunSummary(summary: RunSummary): void {
   const hasErrors =
-    Boolean(summary.bySource.builtin.error) || Boolean(summary.sheets?.error);
+    Boolean(summary.bySource.builtin.error) ||
+    Boolean(summary.bySource.jobright?.error) ||
+    Boolean(summary.sheets?.error);
   const tone = hasErrors ? YELLOW : summary.newJobs.length > 0 ? GREEN : CYAN;
 
   console.log("");
@@ -34,8 +36,22 @@ export function printRunSummary(summary: RunSummary): void {
     console.log(`  skipped (company already on sheet): ${summary.skippedDuplicates}`);
   }
 
-  if (summary.bySource.builtin.error) {
-    console.log(`  builtin: ${RED}${summary.bySource.builtin.error}${RESET}`);
+  const builtin = summary.bySource.builtin;
+  console.log(
+    `  builtin: fetched ${builtin.fetched}, new ${builtin.newCount}, pages ${builtin.pagesFetched}`,
+  );
+  if (builtin.error) {
+    console.log(`    ${RED}${builtin.error}${RESET}`);
+  }
+
+  const jobright = summary.bySource.jobright;
+  if (jobright) {
+    console.log(
+      `  jobright: fetched ${jobright.fetched}, new ${jobright.newCount}, pages ${jobright.pagesFetched}`,
+    );
+    if (jobright.error) {
+      console.log(`    ${RED}${jobright.error}${RESET}`);
+    }
   }
 
   if (summary.sheets?.skipped) {
@@ -82,6 +98,7 @@ export function sendDesktopNotification(summary: RunSummary): void {
     bodyParts.push(`sheets +${summary.sheets.appended}`);
   }
   if (summary.bySource.builtin.error) bodyParts.push("Built In error");
+  if (summary.bySource.jobright?.error) bodyParts.push("JobRight error");
   if (summary.sheets?.error) bodyParts.push("Sheets error");
   const body = bodyParts.join(" · ");
 

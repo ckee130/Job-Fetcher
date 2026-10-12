@@ -19,10 +19,10 @@ function getDispatcher(): ProxyAgent | undefined {
   return agent;
 }
 
-export async function httpGet(url: string, init: RequestInit = {}): Promise<Response> {
+export async function httpRequest(url: string, init: RequestInit = {}): Promise<Response> {
   const headers = {
     "user-agent": config.userAgent,
-    accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    accept: "application/json, text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
     ...(init.headers ?? {}),
   };
@@ -43,6 +43,26 @@ export async function httpGet(url: string, init: RequestInit = {}): Promise<Resp
     const base = err instanceof Error ? err.message : String(err);
     throw new Error(cause ? `${base}: ${cause}` : base);
   }
+}
+
+export async function httpGet(url: string, init: RequestInit = {}): Promise<Response> {
+  return httpRequest(url, init);
+}
+
+export async function httpPostJson(
+  url: string,
+  body: unknown,
+  init: RequestInit = {},
+): Promise<Response> {
+  return httpRequest(url, {
+    ...init,
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(init.headers ?? {}),
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 export function sleep(ms: number): Promise<void> {

@@ -31,6 +31,15 @@ export const config = {
   googleServiceAccountFile: (process.env.GOOGLE_SERVICE_ACCOUNT_FILE || "").trim(),
   /** CV folder; `{sheet}` → active profile name. Skip job if a filename contains the company. */
   cvDir: (process.env.CV_DIR || "").trim(),
+  /** JobRight.ai account — used by every profile alongside Built In. */
+  jobrightEmail: (process.env.JOBRIGHT_EMAIL || "").trim(),
+  jobrightPassword: (process.env.JOBRIGHT_PASSWORD || "").trim(),
+  /** Optional seed session; otherwise login + persist under data/. */
+  jobrightSessionId: (process.env.JOBRIGHT_SESSION_ID || "").trim(),
+  /** Cap JobRight recommendation jobs (0 = default 100). */
+  jobrightMaxJobs: intEnv("JOBRIGHT_MAX_JOBS", 100),
+  /** Delay between JobRight recommendation pages (rate limits are strict). */
+  jobrightPageDelayMs: intEnv("JOBRIGHT_PAGE_DELAY_MS", 7000),
   userAgent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 };

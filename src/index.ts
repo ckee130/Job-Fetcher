@@ -8,9 +8,10 @@ import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import { enrichBuiltinApplyUrls, fetchBuiltinJobs } from "./sources/builtin.js";
+import { fetchJobrightJobs } from "./sources/jobright.js";
 import { resolveProfileName, setActiveProfile, getActiveProxyUrl } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
-import type { JobRecord, RunSummary } from "./types.js";
+import type { JobRecord, JobSource, RunSummary } from "./types.js";
 
 function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
   fs.mkdirSync(config.outputDir, { recursive: true });
@@ -34,33 +35,59 @@ function writeOutput(newJobs: JobRecord[], allFetched: JobRecord[]): string {
   return stampedPath;
 }
 
+function emptySourceStats(): RunSummary["bySource"][JobSource] {
+  return { fetched: 0, newCount: 0, pagesFetched: 0 };
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const profile = setActiveProfile(resolveProfileName(argv));
   const startedAt = new Date().toISOString();
 
-  console.log(`Job fetcher — profile: ${profile.name} · source: builtin`);
+  console.log(`Job fetcher — profile: ${profile.name} · sources: builtin + jobright`);
   const proxy = getActiveProxyUrl() || config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);
   if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
 
   const bySource: RunSummary["bySource"] = {
-    builtin: { fetched: 0, newCount: 0, pagesFetched: 0 },
+    builtin: emptySourceStats(),
+    jobright: emptySourceStats(),
   };
 
   progressPhase("Fetching Built In (listings only)");
-  const result = await fetchBuiltinJobs();
+  const builtinResult = await fetchBuiltinJobs();
   bySource.builtin = {
-    fetched: result.jobs.length,
+    fetched: builtinResult.jobs.length,
     newCount: 0,
-    pagesFetched: result.pagesFetched,
-    error: result.error,
+    pagesFetched: builtinResult.pagesFetched,
+    error: builtinResult.error,
   };
-  if (result.error) progress(`Built In failed: ${result.error}`);
-  else progress(`Built In done — ${result.jobs.length} jobs, ${result.pagesFetched} pages`);
+  if (builtinResult.error) progress(`Built In failed: ${builtinResult.error}`);
+  else {
+    progress(
+      `Built In done — ${builtinResult.jobs.length} jobs, ${builtinResult.pagesFetched} pages`,
+    );
+  }
+
+  progressPhase("Fetching JobRight (recommendations)");
+  const jobrightResult = await fetchJobrightJobs();
+  bySource.jobright = {
+    fetched: jobrightResult.jobs.length,
+    newCount: 0,
+    pagesFetched: jobrightResult.pagesFetched,
+    error: jobrightResult.error,
+  };
+  if (jobrightResult.error) progress(`JobRight failed: ${jobrightResult.error}`);
+  else {
+    progress(
+      `JobRight done — ${jobrightResult.jobs.length} jobs, ${jobrightResult.pagesFetched} pages`,
+    );
+  }
+
+  const allFetched = [...builtinResult.jobs, ...jobrightResult.jobs];
 
   progressPhase("Filtering");
-  const { kept: withinRunJobs, skipped: skippedWithinRun } = dedupeWithinRun(result.jobs);
+  const { kept: withinRunJobs, skipped: skippedWithinRun } = dedupeWithinRun(allFetched);
   if (skippedWithinRun > 0) {
     progress(`within-run dedupe: skipped ${skippedWithinRun} duplicate(s)`);
   }
@@ -72,10 +99,11 @@ async function main(): Promise<void> {
   const uploadFilter = await filterJobsForUpload(titleFilteredJobs);
   const toUpload = uploadFilter.toUpload;
 
-  if (toUpload.length > 0) {
+  const builtinToEnrich = toUpload.filter((j) => j.source === "builtin");
+  if (builtinToEnrich.length > 0) {
     progressPhase("Resolving apply URLs");
-    progress(`fetching employer URLs for ${toUpload.length} Built In job(s)…`);
-    await enrichBuiltinApplyUrls(toUpload);
+    progress(`fetching employer URLs for ${builtinToEnrich.length} Built In job(s)…`);
+    await enrichBuiltinApplyUrls(builtinToEnrich);
   }
 
   progressPhase("Google Sheets upload");
@@ -85,7 +113,9 @@ async function main(): Promise<void> {
       : { appended: 0, uploadedJobs: [] as JobRecord[], error: uploadFilter.error };
 
   const newJobs = appended.uploadedJobs;
-  bySource.builtin.newCount = newJobs.length;
+  for (const job of newJobs) {
+    bySource[job.source].newCount += 1;
+  }
 
   const outputPath = writeOutput(newJobs, titleFilteredJobs);
   const finishedAt = new Date().toISOString();
@@ -117,7 +147,11 @@ async function main(): Promise<void> {
   printRunSummary(summary);
   sendDesktopNotification(summary);
 
-  const failed = bySource.builtin.error || appended.error || uploadFilter.error;
+  const failed =
+    bySource.builtin.error ||
+    bySource.jobright.error ||
+    appended.error ||
+    uploadFilter.error;
   if (failed) process.exitCode = 1;
 }
 

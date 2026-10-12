@@ -1,4 +1,4 @@
-export type JobSource = "builtin";
+export type JobSource = "builtin" | "jobright";
 
 export type JobRecord = {
   company: string;
