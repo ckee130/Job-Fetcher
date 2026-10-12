@@ -9,13 +9,16 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Match needles for CV filenames. Multi-word names also match hyphenated form. */
 export function companyNameMatchVariants(company: string): string[] {
   const normalized = normalizeText(company);
   if (!normalized) return [];
   const words = normalized.split(" ").filter(Boolean);
   if (words.length <= 1) return [normalized];
   return [words.join(" "), words.join("-")];
+}
+
+export function companyNameSubdirKey(company: string): string {
+  return normalizeText(company);
 }
 
 /** True if any filename in the CV dir contains the company name (or hyphen/space variants). */
@@ -29,9 +32,9 @@ export function companyHasCvFile(company: string, filenames: string[]): boolean 
 }
 
 export function companyHasCvSubdir(company: string, dirNames: string[]): boolean {
-  const variants = new Set(companyNameMatchVariants(company));
-  if (variants.size === 0 || dirNames.length === 0) return false;
-  return dirNames.some((name) => variants.has(normalizeText(name)));
+  const key = companyNameSubdirKey(company);
+  if (!key || dirNames.length === 0) return false;
+  return dirNames.some((name) => companyNameSubdirKey(name) === key);
 }
 
 /** Prefer profile.cvRootDir; fall back to CV_DIR template with `{sheet}`. */
@@ -75,11 +78,6 @@ function listSubdirNames(dir: string): string[] {
   }
 }
 
-/**
- * Skip jobs when a local CV already exists for that company.
- * - filename mode (default): file name contains company (Clinton/Nathan/…)
- * - subdir mode: subfolder name equals company (Eric/Jay/Daniel)
- */
 export function filterJobsByCvDir(
   jobs: JobRecord[],
 ): { kept: JobRecord[]; skipped: number; cvDir: string } {
