@@ -2,7 +2,7 @@
 
 Manual CLI that pulls **new** remote jobs from **Hiring Cafe**, **Built In**, and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
-Profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight recommendations come from one shared account (filters live on JobRight).
+Profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight uses a shared account for most profiles; Daniel has its own (`DANIEL_JOBRIGHT_*`).
 
 ## Setup
 
@@ -19,7 +19,7 @@ One spreadsheet; each profile writes to a **tab named after the profile**. Creat
 
 ### JobRight
 
-Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`). Configure your job filters once in the JobRight UI (Confirm) — every profile run fetches that account’s recommendations.
+Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most profiles. **Daniel** uses `DANIEL_JOBRIGHT_EMAIL` / `DANIEL_JOBRIGHT_PASSWORD` (separate account + session file). Configure filters in each JobRight UI (Confirm) — recommendations follow that account.
 
 ### Hiring Cafe
 
@@ -75,5 +75,6 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 - `GOOGLE_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_FILE` — shared spreadsheet
 - `CV_DIR` — fallback `D:\Remote\CV\{sheet}` (profiles also set explicit roots in code)
 - `JOBRIGHT_EMAIL` / `JOBRIGHT_PASSWORD` / `JOBRIGHT_SESSION_ID`
+- `DANIEL_JOBRIGHT_EMAIL` / `DANIEL_JOBRIGHT_PASSWORD` / `DANIEL_JOBRIGHT_SESSION_ID` (Daniel only)
 - `BUILTIN_LOGIN_WAIT_MS`, `BUILTIN_LOGIN_ATTEMPTS`, `BUILTIN_APPLY_CONCURRENCY`
 - `PROXY_URL`, `MAX_PAGES`, `PAGE_DELAY_MS`, `NOTIFY`

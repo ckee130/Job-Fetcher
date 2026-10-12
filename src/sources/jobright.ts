@@ -4,6 +4,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, httpPostJson, sleep } from "../http.js";
+import { getActiveProfile } from "../profiles.js";
 import { progress } from "../progress.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
@@ -38,13 +39,47 @@ type RecommendResponse = {
   result?: { jobList?: JobrightApiJob[] };
 };
 
-function sessionFilePath(): string {
-  return path.join(config.dataDir, "jobright-session.json");
+type JobrightAuth = {
+  email: string;
+  password: string;
+  sessionId: string;
+  emailEnv: string;
+  passwordEnv: string;
+  sessionEnv: string;
+  sessionFile: string;
+};
+
+function resolveJobrightAuth(): JobrightAuth {
+  const prefix = getActiveProfile().jobrightEnvPrefix;
+  if (prefix === "DANIEL_JOBRIGHT") {
+    return {
+      email: config.danielJobrightEmail,
+      password: config.danielJobrightPassword,
+      sessionId: config.danielJobrightSessionId,
+      emailEnv: "DANIEL_JOBRIGHT_EMAIL",
+      passwordEnv: "DANIEL_JOBRIGHT_PASSWORD",
+      sessionEnv: "DANIEL_JOBRIGHT_SESSION_ID",
+      sessionFile: "jobright-session-daniel.json",
+    };
+  }
+  return {
+    email: config.jobrightEmail,
+    password: config.jobrightPassword,
+    sessionId: config.jobrightSessionId,
+    emailEnv: "JOBRIGHT_EMAIL",
+    passwordEnv: "JOBRIGHT_PASSWORD",
+    sessionEnv: "JOBRIGHT_SESSION_ID",
+    sessionFile: "jobright-session.json",
+  };
 }
 
-function loadPersistedSession(): string {
+function sessionFilePath(auth: JobrightAuth): string {
+  return path.join(config.dataDir, auth.sessionFile);
+}
+
+function loadPersistedSession(auth: JobrightAuth): string {
   try {
-    const raw = fs.readFileSync(sessionFilePath(), "utf8");
+    const raw = fs.readFileSync(sessionFilePath(auth), "utf8");
     const data = JSON.parse(raw) as { sessionId?: string };
     return (data.sessionId || "").trim();
   } catch {
@@ -52,20 +87,19 @@ function loadPersistedSession(): string {
   }
 }
 
-function savePersistedSession(sessionId: string): void {
+function savePersistedSession(auth: JobrightAuth, sessionId: string): void {
   fs.mkdirSync(config.dataDir, { recursive: true });
   fs.writeFileSync(
-    sessionFilePath(),
+    sessionFilePath(auth),
     JSON.stringify({ sessionId, savedAt: new Date().toISOString() }, null, 2) + "\n",
     "utf8",
   );
 }
 
 export function isJobrightConfigured(): boolean {
+  const auth = resolveJobrightAuth();
   return Boolean(
-    config.jobrightSessionId ||
-      loadPersistedSession() ||
-      (config.jobrightEmail && config.jobrightPassword),
+    auth.sessionId || loadPersistedSession(auth) || (auth.email && auth.password),
   );
 }
 
@@ -79,17 +113,19 @@ function extractSessionIdFromSetCookie(header: string | null): string {
   return match?.[1]?.trim() ?? "";
 }
 
-async function login(): Promise<string> {
-  if (!config.jobrightEmail || !config.jobrightPassword) {
-    throw new Error("JobRight credentials missing (set JOBRIGHT_EMAIL + JOBRIGHT_PASSWORD)");
+async function login(auth: JobrightAuth): Promise<string> {
+  if (!auth.email || !auth.password) {
+    throw new Error(
+      `JobRight credentials missing (set ${auth.emailEnv} + ${auth.passwordEnv})`,
+    );
   }
 
   progress("JobRight: logging in…");
   const res = await httpPostJson(
     `${API_BASE}/swan/auth/login/pwd`,
     {
-      email: config.jobrightEmail,
-      password: config.jobrightPassword,
+      email: auth.email,
+      password: auth.password,
     },
     {
       headers: {
@@ -126,7 +162,7 @@ async function login(): Promise<string> {
     throw new Error("JobRight login succeeded but no SESSION_ID cookie returned");
   }
 
-  savePersistedSession(sessionId);
+  savePersistedSession(auth, sessionId);
   progress("JobRight: login ok");
   return sessionId;
 }
@@ -144,21 +180,20 @@ async function validateSession(sessionId: string): Promise<boolean> {
 }
 
 async function ensureSession(forceRelogin = false): Promise<string> {
+  const auth = resolveJobrightAuth();
   if (!forceRelogin) {
-    const candidates = [
-      config.jobrightSessionId,
-      loadPersistedSession(),
-    ].filter(Boolean);
+    const persisted = loadPersistedSession(auth);
+    const candidates = [auth.sessionId, persisted].filter(Boolean);
 
     for (const sessionId of candidates) {
       if (await validateSession(sessionId)) {
-        if (sessionId !== loadPersistedSession()) savePersistedSession(sessionId);
+        if (sessionId !== persisted) savePersistedSession(auth, sessionId);
         return sessionId;
       }
     }
   }
 
-  return login();
+  return login(auth);
 }
 
 async function fetchRecommendationPage(
@@ -253,15 +288,15 @@ function maxJobsWanted(): number {
   return config.jobrightMaxJobs > 0 ? config.jobrightMaxJobs : 100;
 }
 
-/** Personalized recommendations from the shared JobRight account (all profiles). */
+/** Personalized recommendations from the active profile’s JobRight account. */
 export async function fetchJobrightJobs(): Promise<FetchResult> {
+  const auth = resolveJobrightAuth();
   if (!isJobrightConfigured()) {
     return {
       source: "jobright",
       jobs: [],
       pagesFetched: 0,
-      error:
-        "JobRight not configured (set JOBRIGHT_EMAIL + JOBRIGHT_PASSWORD, or JOBRIGHT_SESSION_ID)",
+      error: `JobRight not configured (set ${auth.emailEnv} + ${auth.passwordEnv}, or ${auth.sessionEnv})`,
     };
   }
 

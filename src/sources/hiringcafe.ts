@@ -68,8 +68,10 @@ function extractJobSlugs(html: string): Map<string, string> {
 }
 
 function buildSearchUrl(page: number): string {
-  const url = new URL("https://hiringcafe.com/");
-  url.searchParams.set("searchState", JSON.stringify(getActiveProfile().hiringCafe));
+  const profile = getActiveProfile();
+  const path = (profile.hiringCafePath || "/").trim() || "/";
+  const url = new URL(path, "https://hiringcafe.com");
+  url.searchParams.set("searchState", JSON.stringify(profile.hiringCafe));
   if (page > 0) url.searchParams.set("page", String(page));
   return url.toString();
 }

@@ -46,6 +46,8 @@ export type Profile = {
   proxyUrl?: string;
   /** Hiring Cafe searchState payload (per profile). */
   hiringCafe: Record<string, unknown>;
+  /** Hiring Cafe path (default `/`; Daniel uses `/classic`). */
+  hiringCafePath?: string;
   /** Three Built In saved searches per profile. */
   builtinSearches: BuiltinSearch[];
   /**
@@ -70,6 +72,11 @@ export type Profile = {
   cvMatchMode?: "filename" | "subdir";
   /** When true, skip Google Sheet company dedupe (local check only). */
   skipSheetCompanyCheck?: boolean;
+  /**
+   * JobRight env prefix. Default: JOBRIGHT_EMAIL/PASSWORD/SESSION_ID.
+   * Daniel uses DANIEL_JOBRIGHT_* (separate account + session file).
+   */
+  jobrightEnvPrefix?: string;
 };
 
 const BUILTIN_USA = {
@@ -138,6 +145,38 @@ const NATHAN_HIRING_CAFE = {
   roleYoeRange: [4, 8],
   roleTypes: ["Individual Contributor"],
   excludeAllLicensesAndCertifications: true,
+  securityClearances: ["None"],
+  sortBy: "date",
+} as const;
+
+const DANIEL_HIRING_CAFE = {
+  locations: [
+    {
+      formatted_address: "United States",
+      types: ["country"],
+      geometry: { location: { lat: 42.35843, lon: -71.05977 } },
+      id: "user_country",
+      address_components: [
+        {
+          long_name: "United States",
+          short_name: "US",
+          types: ["country"],
+        },
+      ],
+      options: {
+        flexible_regions: ["anywhere_in_continent", "anywhere_in_world"],
+      },
+      workplace_types: ["Remote"],
+    },
+  ],
+  dateFetchedPastNDays: 4,
+  departments: [
+    "Data and Analytics",
+    "Software Development",
+    "Information Technology",
+    "Engineering",
+  ],
+  roleYoeRange: [0, 4],
   securityClearances: ["None"],
   sortBy: "date",
 } as const;
@@ -231,8 +270,10 @@ export const PROFILES = {
     cvRootDir: usResumeDir("Daniel"),
     cvMatchMode: "subdir",
     skipSheetCompanyCheck: true,
-    hiringCafe: NATHAN_HIRING_CAFE,
+    hiringCafePath: "/classic",
+    hiringCafe: DANIEL_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
+    jobrightEnvPrefix: "DANIEL_JOBRIGHT",
   },
 } as const satisfies Record<string, Profile>;
 
