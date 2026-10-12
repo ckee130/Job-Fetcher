@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 import { config } from "./config.js";
+import { getActiveProfile, PROFILES, type ProfileName } from "./profiles.js";
 import { progress } from "./progress.js";
 import type { JobRecord } from "./types.js";
 
@@ -27,8 +28,22 @@ export function companyHasCvFile(company: string, filenames: string[]): boolean 
   });
 }
 
-/** `D:\remote\CV\{sheet}` — `{sheet}` is replaced with GOOGLE_SHEET_NAME. */
+export function companyHasCvSubdir(company: string, dirNames: string[]): boolean {
+  const variants = new Set(companyNameMatchVariants(company));
+  if (variants.size === 0 || dirNames.length === 0) return false;
+  return dirNames.some((name) => variants.has(normalizeText(name)));
+}
+
+/** Prefer profile.cvRootDir; fall back to CV_DIR template with `{sheet}`. */
 export function resolveCvDir(sheetName: string): string {
+  const key = sheetName.trim();
+  const match = (Object.keys(PROFILES) as ProfileName[]).find(
+    (p) => p.toLowerCase() === key.toLowerCase(),
+  );
+  if (match) {
+    const root = (PROFILES[match].cvRootDir || "").trim();
+    if (root) return root;
+  }
   const template = config.cvDir.trim();
   if (!template) return "";
   return template.replace(/\{sheet\}/gi, sheetName);
@@ -47,29 +62,55 @@ function listFilenames(dir: string): string[] {
   }
 }
 
+function listSubdirNames(dir: string): string[] {
+  try {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch (err) {
+    const code = err instanceof Error && "code" in err ? String(err.code) : "";
+    if (code === "ENOENT") return [];
+    throw err;
+  }
+}
+
 /**
- * Skip jobs when a CV file for that company already exists.
- * Path: CV_DIR with `{sheet}` → GOOGLE_SHEET_NAME (e.g. D:\remote\CV\Jobs).
+ * Skip jobs when a local CV already exists for that company.
+ * - filename mode (default): file name contains company (Clinton/Nathan/…)
+ * - subdir mode: subfolder name equals company (Eric/Jay/Daniel)
  */
 export function filterJobsByCvDir(
   jobs: JobRecord[],
-  sheetName: string,
 ): { kept: JobRecord[]; skipped: number; cvDir: string } {
-  const cvDir = resolveCvDir(sheetName);
+  const profile = getActiveProfile();
+  const cvDir = (profile.cvRootDir || "").trim() || resolveCvDir(profile.name);
   if (!cvDir) return { kept: jobs, skipped: 0, cvDir: "" };
 
-  const filenames = listFilenames(cvDir);
-  progress(`CV dir: ${cvDir} (${filenames.length} file(s))`);
-
+  const matchMode = profile.cvMatchMode ?? "filename";
   const kept: JobRecord[] = [];
   let skipped = 0;
 
-  for (const job of jobs) {
-    if (companyHasCvFile(job.company, filenames)) {
-      skipped += 1;
-      continue;
+  if (matchMode === "subdir") {
+    const dirNames = listSubdirNames(cvDir);
+    progress(`CV dir (subdir mode): ${cvDir} (${dirNames.length} folder(s))`);
+    for (const job of jobs) {
+      if (companyHasCvSubdir(job.company, dirNames)) {
+        skipped += 1;
+        continue;
+      }
+      kept.push(job);
     }
-    kept.push(job);
+  } else {
+    const filenames = listFilenames(cvDir);
+    progress(`CV dir (filename mode): ${cvDir} (${filenames.length} file(s))`);
+    for (const job of jobs) {
+      if (companyHasCvFile(job.company, filenames)) {
+        skipped += 1;
+        continue;
+      }
+      kept.push(job);
+    }
   }
 
   return { kept, skipped, cvDir };

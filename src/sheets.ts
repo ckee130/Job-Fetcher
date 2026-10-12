@@ -253,11 +253,15 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       progress("skipping local CV directory check (sheet-only dedupe)");
     } else {
       progress("checking CV directory…");
-      const cvFilter = filterJobsByCvDir(jobs, sheetName);
+      const cvFilter = filterJobsByCvDir(jobs);
       afterCv = cvFilter.kept;
       skippedByCv = cvFilter.skipped;
       if (cvFilter.cvDir && skippedByCv > 0) {
-        progress(`skipped ${skippedByCv} job(s) — CV file exists for company`);
+        const how =
+          profile.cvMatchMode === "subdir"
+            ? "company folder exists"
+            : "CV file exists for company";
+        progress(`skipped ${skippedByCv} job(s) — ${how}`);
       }
     }
 
@@ -302,17 +306,27 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       }
     }
 
-    progress("loading existing companies…");
-    const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
-    progress(`sheet has ${existingCompanies.size} company row(s)`);
-
-    const { toUpload, skippedDuplicates } = filterJobsBySheetCompanies(
-      afterPeerRole,
-      existingCompanies,
-    );
-    progress(
-      `will upload ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
-    );
+    let toUpload: JobRecord[];
+    let skippedDuplicates = 0;
+    if (profile.skipSheetCompanyCheck) {
+      progress("skipping sheet company check (local-only dedupe)");
+      // Still one row per company within this run.
+      ({ toUpload, skippedDuplicates } = filterJobsBySheetCompanies(afterPeerRole, new Set()));
+      progress(
+        `will upload ${toUpload.length} · skipped (duplicate company in run): ${skippedDuplicates}`,
+      );
+    } else {
+      progress("loading existing companies…");
+      const existingCompanies = await loadExistingCompanies(sheets, spreadsheetId, sheetName);
+      progress(`sheet has ${existingCompanies.size} company row(s)`);
+      ({ toUpload, skippedDuplicates } = filterJobsBySheetCompanies(
+        afterPeerRole,
+        existingCompanies,
+      ));
+      progress(
+        `will upload ${toUpload.length} · skipped (company already on sheet): ${skippedDuplicates}`,
+      );
+    }
 
     return {
       toUpload,

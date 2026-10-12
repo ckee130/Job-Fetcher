@@ -2,7 +2,7 @@
 
 Manual CLI that pulls **new** remote jobs from **Hiring Cafe**, **Built In**, and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
-Five profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Kami** — each with its own Hiring Cafe + Built In search filters and Google Sheet tab (most also use a local CV folder). JobRight recommendations come from one shared account (filters live on JobRight).
+Profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight recommendations come from one shared account (filters live on JobRight).
 
 ## Setup
 
@@ -15,7 +15,7 @@ cp .env.example .env
 
 ### Google Sheets
 
-One spreadsheet; each profile writes to a **tab named after the profile** (Clinton, Nathan, Andrei, Blake, Kami). Create those tabs and share the sheet with your service account.
+One spreadsheet; each profile writes to a **tab named after the profile**. Create those tabs and share the sheet with your service account.
 
 ### JobRight
 
@@ -27,14 +27,14 @@ Uses a **headed Chromium** window (Playwright). If a bot check appears, complete
 
 ## Run
 
-Pick a profile:
-
 ```bash
 npm run fetch:clinton
 npm run fetch:nathan
 npm run fetch:andrei
 npm run fetch:blake
-npm run fetch:kami
+npm run fetch:eric
+npm run fetch:jay
+npm run fetch:daniel
 ```
 
 Or pass `--profile` / set `PROFILE` in `.env`:
@@ -45,38 +45,35 @@ npm run fetch -- --profile=Nathan
 
 ## Profiles
 
-| Profile | Hiring Cafe + Built In |
-|---------|------------------------|
-| **Clinton** | US remote eng/data; YoE 5–10; Built In senior/expert-leader |
-| **Nathan** | US remote eng/data; YoE 4–8; Built In senior |
-| **Andrei** | Remote eng/data; YoE 2–6; Built In GBR senior |
-| **Blake** | Same as Clinton; only uploads companies already in Clinton or Nathan CVs |
-| **Kami** | Same as Nathan; sheet-only company dedupe (no local CV folder check) |
+| Profile | Local path | Match |
+|---------|------------|--------|
+| **Clinton / Nathan / Andrei / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
+| **Eric / Jay / Daniel** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 
-Filters are defined in `src/profiles.ts`. JobRight uses the account’s saved criteria for all profiles.
+| Profile | Search notes |
+|---------|----------------|
+| **Clinton** | US remote; YoE 5–10; Built In senior/expert-leader |
+| **Nathan** | US remote; YoE 4–8; Built In senior |
+| **Andrei** | Remote GBR; YoE 2–6 |
+| **Blake** | Same as Clinton; company in Clinton/Nathan CVs; skip same company+role on those sheets |
+| **Eric / Jay / Daniel** | Same as Nathan; local-only dedupe |
+
+Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
 
 ## Pipeline
 
 1. Fetch Hiring Cafe → Built In → JobRight (Hiring Cafe wins within-run company/URL dedupe)
 2. Within-run dedupe (same company / apply URL across sources)
 3. Title filter (manager, director, designer, VP, owner)
-4. CV folder check (skipped for Kami) → peer CV check (Blake only) → sheet company check (one row per company)
+4. Local company check (file or subfolder) → Blake peer checks → sheet company check (skipped for Eric/Jay/Daniel)
 5. Resolve Built In employer apply URLs for jobs that will upload
 6. Upload to profile tab with date
-
-## Output
-
-| Path | What |
-|------|------|
-| Google Sheet tab `{profile}` | New jobs appended each run |
-| `output/latest-new-jobs.json` | Local backup of last upload |
-| `data/jobright-session.json` | Cached JobRight `SESSION_ID` |
 
 ## Env
 
 - `PROFILE` — default profile if `--profile` omitted
 - `GOOGLE_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_FILE` — shared spreadsheet
-- `CV_DIR` — `D:\remote\CV\{sheet}` where `{sheet}` = profile name
+- `CV_DIR` — fallback `D:\Remote\CV\{sheet}` (profiles also set explicit roots in code)
 - `JOBRIGHT_EMAIL` / `JOBRIGHT_PASSWORD` / `JOBRIGHT_SESSION_ID`
-- `JOBRIGHT_MAX_JOBS`, `JOBRIGHT_PAGE_DELAY_MS`
+- `BUILTIN_LOGIN_WAIT_MS`, `BUILTIN_LOGIN_ATTEMPTS`, `BUILTIN_APPLY_CONCURRENCY`
 - `PROXY_URL`, `MAX_PAGES`, `PAGE_DELAY_MS`, `NOTIFY`

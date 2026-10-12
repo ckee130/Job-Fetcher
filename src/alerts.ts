@@ -26,7 +26,7 @@ export function printRunSummary(summary: RunSummary): void {
     console.log(`  skipped by title filter: ${summary.skippedByTitle}`);
   }
   if (summary.skippedByCv) {
-    console.log(`  skipped (CV file exists for company): ${summary.skippedByCv}`);
+    console.log(`  skipped (local company already covered): ${summary.skippedByCv}`);
   }
   if (summary.skippedByPeerCv) {
     console.log(

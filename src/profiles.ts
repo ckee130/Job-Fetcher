@@ -60,6 +60,16 @@ export type Profile = {
   skipSameRoleOnPeerSheets?: boolean;
   /** When true, skip local CV folder dedupe — sheet company check only. */
   skipCvDirCheck?: boolean;
+  /** Absolute resume root for this profile (overrides CV_DIR template). */
+  cvRootDir?: string;
+  /**
+   * How local company presence is detected:
+   * - filename (default): any file name containing the company
+   * - subdir: a child folder named after the company (Eric/Jay/Daniel)
+   */
+  cvMatchMode?: "filename" | "subdir";
+  /** When true, skip Google Sheet company dedupe (local check only). */
+  skipSheetCompanyCheck?: boolean;
 };
 
 const BUILTIN_USA = {
@@ -92,7 +102,7 @@ const CLINTON_BUILTIN_SEARCHES: BuiltinSearch[] = [
   },
 ];
 
-/** USA senior searches shared by Nathan and Kami. */
+/** USA senior searches shared by Nathan, Eric, Jay, Daniel. */
 const NATHAN_BUILTIN_SEARCHES: BuiltinSearch[] = [
   {
     path: "/jobs/remote/data-analytics/data-engineering/senior",
@@ -132,19 +142,33 @@ const NATHAN_HIRING_CAFE = {
   sortBy: "date",
 } as const;
 
+function remoteCvDir(profileName: string): string {
+  return `D:\\Remote\\CV\\${profileName}`;
+}
+
+function usResumeDir(profileName: string): string {
+  return `E:\\Data\\RM\\US Resume\\Resumes\\${profileName}`;
+}
+
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
+    cvRootDir: remoteCvDir("Clinton"),
+    cvMatchMode: "filename",
     hiringCafe: CLINTON_HIRING_CAFE,
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
   Nathan: {
     name: "Nathan",
+    cvRootDir: remoteCvDir("Nathan"),
+    cvMatchMode: "filename",
     hiringCafe: NATHAN_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
   Andrei: {
     name: "Andrei",
+    cvRootDir: remoteCvDir("Andrei"),
+    cvMatchMode: "filename",
     proxyUrl: parseProxyUrl(process.env.ANDREI_PROXY_URL || ""),
     hiringCafe: {
       workplaceTypes: ["Remote"],
@@ -177,6 +201,8 @@ export const PROFILES = {
   },
   Blake: {
     name: "Blake",
+    cvRootDir: remoteCvDir("Blake"),
+    cvMatchMode: "filename",
     /** Same searches as Clinton; company must exist in Clinton/Nathan CVs. */
     requireCvInProfiles: ["Clinton", "Nathan"],
     /** Skip when Clinton or Nathan sheet already has the same company + role. */
@@ -184,10 +210,27 @@ export const PROFILES = {
     hiringCafe: CLINTON_HIRING_CAFE,
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },
-  Kami: {
-    name: "Kami",
-    /** Same searches as Nathan; dedupe against sheet only (no local CV folder). */
-    skipCvDirCheck: true,
+  Eric: {
+    name: "Eric",
+    cvRootDir: usResumeDir("Eric"),
+    cvMatchMode: "subdir",
+    skipSheetCompanyCheck: true,
+    hiringCafe: NATHAN_HIRING_CAFE,
+    builtinSearches: NATHAN_BUILTIN_SEARCHES,
+  },
+  Jay: {
+    name: "Jay",
+    cvRootDir: usResumeDir("Jay"),
+    cvMatchMode: "subdir",
+    skipSheetCompanyCheck: true,
+    hiringCafe: NATHAN_HIRING_CAFE,
+    builtinSearches: NATHAN_BUILTIN_SEARCHES,
+  },
+  Daniel: {
+    name: "Daniel",
+    cvRootDir: usResumeDir("Daniel"),
+    cvMatchMode: "subdir",
+    skipSheetCompanyCheck: true,
     hiringCafe: NATHAN_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
@@ -214,7 +257,7 @@ export function setActiveProfile(name: string): Profile {
 export function getActiveProfile(): Profile {
   if (!activeProfile) {
     throw new Error(
-      `No profile selected. Pass --profile=Clinton|Nathan|Andrei|Blake|Kami (or set PROFILE in .env)`,
+      `No profile selected. Pass --profile=${listProfiles().join("|")} (or set PROFILE in .env)`,
     );
   }
   return activeProfile;
@@ -232,6 +275,6 @@ export function resolveProfileName(argv: string[]): string {
   const fromEnv = (process.env.PROFILE || "").trim();
   if (fromEnv) return fromEnv;
   throw new Error(
-    `Missing profile. Pass --profile=Clinton|Nathan|Andrei|Blake|Kami or set PROFILE in .env`,
+    `Missing profile. Pass --profile=${listProfiles().join("|")} or set PROFILE in .env`,
   );
 }
