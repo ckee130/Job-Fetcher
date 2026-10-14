@@ -2,7 +2,7 @@
 
 Manual CLI that pulls **new** remote jobs from **Hiring Cafe**, **Built In**, and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
-Profiles: **Clinton**, **Nathan**, **Andrei**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight uses a shared account for most profiles; Daniel has its own (`DANIEL_JOBRIGHT_*`).
+Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight uses a shared account for most profiles; Daniel has its own (`DANIEL_JOBRIGHT_*`).
 
 ## Setup
 
@@ -23,14 +23,13 @@ Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most p
 
 ### Hiring Cafe
 
-Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). Proxy is off for this browser by default (`HIRINGCAFE_USE_PROXY=0`) because datacenter proxies often get 403.
+Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). All sources (Hiring Cafe, Built In, JobRight) use `PROXY_URL` when set.
 
 ## Run
 
 ```bash
 npm run fetch:clinton
 npm run fetch:nathan
-npm run fetch:andrei
 npm run fetch:blake
 npm run fetch:eric
 npm run fetch:jay
@@ -47,14 +46,13 @@ npm run fetch -- --profile=Nathan
 
 | Profile | Local path | Match |
 |---------|------------|--------|
-| **Clinton / Nathan / Andrei / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
+| **Clinton / Nathan / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
 | **Eric / Jay / Daniel** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 
 | Profile | Search notes |
 |---------|----------------|
 | **Clinton** | US remote; YoE 5–10; Built In senior/expert-leader |
 | **Nathan** | US remote; YoE 4–8; Built In senior |
-| **Andrei** | Remote GBR; YoE 2–6 |
 | **Blake** | Same as Clinton; company in Clinton/Nathan CVs; skip same company+role on those sheets |
 | **Eric / Jay / Daniel** | Same as Nathan; local-only dedupe |
 

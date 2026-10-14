@@ -31,7 +31,7 @@ export const config = {
   googleServiceAccountFile: (process.env.GOOGLE_SERVICE_ACCOUNT_FILE || "").trim(),
   /** CV folder; `{sheet}` → active profile name. Skip job if a filename contains the company. */
   cvDir: (process.env.CV_DIR || "").trim(),
-  /** Shared JobRight.ai account (Clinton/Nathan/Andrei/Blake/Eric/Jay). */
+  /** Shared JobRight.ai account (Clinton/Nathan/Blake/Eric/Jay). */
   jobrightEmail: (process.env.JOBRIGHT_EMAIL || "").trim(),
   jobrightPassword: (process.env.JOBRIGHT_PASSWORD || "").trim(),
   /** Optional seed session; otherwise login + persist under data/. */
@@ -49,10 +49,6 @@ export const config = {
    * Default 5 minutes.
    */
   hiringCafeChallengeTimeoutMs: intEnv("HIRINGCAFE_CHALLENGE_TIMEOUT_MS", 300_000),
-  /**
-   * Use PROXY_URL for the Hiring Cafe browser. Default off — datacenter proxies often trigger 403.
-   */
-  hiringCafeUseProxy: boolEnv("HIRINGCAFE_USE_PROXY", false),
   /** Quiet wait between Built In login checks (ms). Default 1 minute. */
   builtinLoginWaitMs: intEnv("BUILTIN_LOGIN_WAIT_MS", 60_000),
   /** How many times to wait-then-check for Built In login. */

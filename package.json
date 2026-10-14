@@ -7,7 +7,6 @@
     "fetch": "tsx src/index.ts",
     "fetch:clinton": "tsx src/index.ts --profile=Clinton",
     "fetch:nathan": "tsx src/index.ts --profile=Nathan",
-    "fetch:andrei": "tsx src/index.ts --profile=Andrei",
     "fetch:blake": "tsx src/index.ts --profile=Blake",
     "fetch:eric": "tsx src/index.ts --profile=Eric",
     "fetch:jay": "tsx src/index.ts --profile=Jay",

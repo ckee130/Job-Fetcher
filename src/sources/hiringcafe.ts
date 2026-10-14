@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
-import { getActiveProfile, getActiveProxyUrl } from "../profiles.js";
+import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { sleep } from "../http.js";
 import { progress } from "../progress.js";
@@ -165,12 +165,10 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
   let browser: Browser | null = null;
 
   try {
-    const useProxy = config.hiringCafeUseProxy;
-    const proxyUrl = useProxy ? getActiveProxyUrl() || config.proxyUrl : "";
-    const proxy = playwrightProxyFromUrl(proxyUrl);
+    const proxy = playwrightProxyFromUrl(config.proxyUrl);
 
     progress(
-      `Hiring Cafe: opening headed browser${proxy ? " (via proxy)" : " (direct, no proxy)"}…`,
+      `Hiring Cafe: opening headed browser${proxy ? " (via proxy)" : " (direct)"}…`,
     );
 
     browser = await chromium.launch({

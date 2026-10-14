@@ -1,11 +1,10 @@
 import { ProxyAgent, fetch as undiciFetch, type RequestInit } from "undici";
 import { config } from "./config.js";
-import { getActiveProxyUrl } from "./profiles.js";
 
 const dispatchers = new Map<string, ProxyAgent>();
 
 function resolveProxyUrl(): string {
-  return getActiveProxyUrl() || config.proxyUrl;
+  return config.proxyUrl;
 }
 
 function getDispatcher(): ProxyAgent | undefined {

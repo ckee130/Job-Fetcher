@@ -1,5 +1,3 @@
-import { parseProxyUrl } from "./proxy.js";
-
 const US_REMOTE = {
   id: "FxY1yZQBoEtHp_8UEq7V",
   types: ["country"],
@@ -42,8 +40,6 @@ export type BuiltinSearch = {
 export type Profile = {
   /** Google Sheet tab name and CV subfolder name. */
   name: string;
-  /** Per-profile HTTP proxy; falls back to PROXY_URL when unset. */
-  proxyUrl?: string;
   /** Hiring Cafe searchState payload (per profile). */
   hiringCafe: Record<string, unknown>;
   /** Hiring Cafe path (default `/`; Daniel uses `/classic`). */
@@ -82,14 +78,6 @@ export type Profile = {
 const BUILTIN_USA = {
   daysSinceUpdated: "1",
   country: "USA",
-  allLocations: "true",
-} as const;
-
-const BUILTIN_GBR = {
-  daysSinceUpdated: "1",
-  city: "",
-  state: "",
-  country: "GBR",
   allLocations: "true",
 } as const;
 
@@ -204,40 +192,6 @@ export const PROFILES = {
     hiringCafe: NATHAN_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
   },
-  Andrei: {
-    name: "Andrei",
-    cvRootDir: remoteCvDir("Andrei"),
-    cvMatchMode: "filename",
-    proxyUrl: parseProxyUrl(process.env.ANDREI_PROXY_URL || ""),
-    hiringCafe: {
-      workplaceTypes: ["Remote"],
-      commitmentTypes: [...COMMITMENT_TYPES],
-      dateFetchedPastNDays: HC_DATE_FETCHED_PAST_N_DAYS,
-      departments: [
-        "Engineering",
-        "Software Development",
-        "Information Technology",
-        "Data and Analytics",
-      ],
-      roleYoeRange: [2, 6],
-      roleTypes: ["Individual Contributor"],
-      securityClearances: ["None"],
-    },
-    builtinSearches: [
-      {
-        path: "/jobs/remote/ai-machine-learning/senior",
-        params: { ...BUILTIN_GBR },
-      },
-      {
-        path: "/jobs/remote/engineering/software-engineering/devops-platform-engineering/qa-test-engineering/security-engineering/systems-engineering/senior",
-        params: { ...BUILTIN_GBR },
-      },
-      {
-        path: "/jobs/remote/data-analytics/data-engineering/senior",
-        params: { ...BUILTIN_GBR },
-      },
-    ],
-  },
   Blake: {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
@@ -302,11 +256,6 @@ export function getActiveProfile(): Profile {
     );
   }
   return activeProfile;
-}
-
-export function getActiveProxyUrl(): string {
-  const profile = getActiveProfile();
-  return (profile.proxyUrl || "").trim();
 }
 
 /** `--profile=Clinton` or PROFILE env. */

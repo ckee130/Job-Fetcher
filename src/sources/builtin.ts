@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
-import { getActiveProfile, getActiveProxyUrl, type BuiltinSearch } from "../profiles.js";
+import { getActiveProfile, type BuiltinSearch } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import { progress } from "../progress.js";
@@ -148,7 +148,7 @@ let sharedContext: BrowserContext | null = null;
 async function ensureBrowserContext(): Promise<BrowserContext> {
   if (sharedContext && sharedBrowser) return sharedContext;
 
-  const proxyUrl = getActiveProxyUrl() || config.proxyUrl;
+  const proxyUrl = config.proxyUrl;
   const proxy = playwrightProxyFromUrl(proxyUrl);
   progress(
     `Built In: opening headed browser for apply URLs${proxy ? " (via proxy)" : " (direct)"}…`,

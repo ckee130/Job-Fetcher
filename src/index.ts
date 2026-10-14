@@ -15,7 +15,7 @@ import {
 } from "./sources/builtin.js";
 import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { fetchJobrightJobs } from "./sources/jobright.js";
-import { resolveProfileName, setActiveProfile, getActiveProxyUrl } from "./profiles.js";
+import { resolveProfileName, setActiveProfile } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
 import type { FetchResult, JobRecord, JobSource, RunSummary } from "./types.js";
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   console.log(
     `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}`,
   );
-  const proxy = getActiveProxyUrl() || config.proxyUrl;
+  const proxy = config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);
   if (config.maxPages > 0) console.log(`  maxPages: ${config.maxPages}`);
 
