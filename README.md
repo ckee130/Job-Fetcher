@@ -15,7 +15,7 @@ cp .env.example .env
 
 ### Google Sheets
 
-One spreadsheet; each profile writes to a **tab named after the profile**. Create those tabs and share the sheet with your service account.
+One spreadsheet; each profile writes to a **tab named after the profile**. Create those tabs and share the sheet with your service account. Columns: Company, Role, Job Link, Source, Date, **Type** (Full-time / Contract / … when the source provides it).
 
 ### JobRight
 

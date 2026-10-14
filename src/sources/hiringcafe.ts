@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { sleep } from "../http.js";
@@ -13,7 +14,12 @@ type HcHit = {
   apply_url?: string;
   requisition_id?: string;
   job_information?: { title?: string; job_title_raw?: string };
-  v5_processed_job_data?: { company_name?: string; core_job_title?: string };
+  v5_processed_job_data?: {
+    company_name?: string;
+    core_job_title?: string;
+    commitment?: string | string[];
+    employment_types?: string | string[];
+  };
   enriched_company_data?: { name?: string };
 };
 
@@ -95,6 +101,10 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
 
   if (!title || !company || !jobLink) return null;
 
+  const employmentType = normalizeEmploymentType(
+    hit.v5_processed_job_data?.commitment ?? hit.v5_processed_job_data?.employment_types,
+  );
+
   const job: JobRecord = {
     company: decodeHtmlEntities(company),
     title: decodeHtmlEntities(title),
@@ -102,6 +112,7 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
     listingUrl,
     source: "hiringcafe",
     externalId: hit.id || hit.objectID || req || undefined,
+    ...(employmentType ? { employmentType } : {}),
   };
   if (shouldSkipJob(job)) return null;
   return job;

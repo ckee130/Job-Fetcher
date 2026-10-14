@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { config } from "../config.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, httpPostJson, sleep } from "../http.js";
 import { getActiveProfile } from "../profiles.js";
@@ -27,6 +28,7 @@ type JobrightApiJob = {
     jobTitle?: string;
     applyLink?: string;
     jobLocation?: string;
+    employmentType?: string;
   };
   companyResult?: {
     companyName?: string;
@@ -264,12 +266,13 @@ function parseJob(raw: JobrightApiJob): JobRecord | null {
 
   const listingUrl = jobId ? `${SITE_BASE}/jobs/info/${jobId}` : "";
   const applyLink = (jr.applyLink || "").trim();
-  // Prefer employer apply URL, but never upload LinkedIn postings — use JobRight link instead.
-  const jobLink =
-    applyLink && !isLinkedInJobUrl(applyLink)
-      ? applyLink
-      : listingUrl || applyLink;
+  // Skip LinkedIn-only applies — do not substitute the JobRight listing URL.
+  if (applyLink && isLinkedInJobUrl(applyLink)) return null;
+
+  const jobLink = applyLink || listingUrl;
   if (!jobLink) return null;
+
+  const employmentType = normalizeEmploymentType(jr.employmentType);
 
   const job: JobRecord = {
     company,
@@ -278,6 +281,7 @@ function parseJob(raw: JobrightApiJob): JobRecord | null {
     listingUrl: listingUrl || undefined,
     source: "jobright",
     externalId: jobId || undefined,
+    ...(employmentType ? { employmentType } : {}),
   };
   if (shouldSkipJob(job)) return null;
   return job;

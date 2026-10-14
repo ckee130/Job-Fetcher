@@ -9,7 +9,7 @@ import { progress } from "./progress.js";
 import { getActiveProfile } from "./profiles.js";
 import type { JobRecord } from "./types.js";
 
-const HEADER = ["Company", "Role", "Job Link", "Source", "Date"] as const;
+const HEADER = ["Company", "Role", "Job Link", "Source", "Date", "Type"] as const;
 
 export type SheetsAppendResult = {
   appended: number;
@@ -91,7 +91,7 @@ async function ensureHeader(
   spreadsheetId: string,
   sheetName: string,
 ): Promise<void> {
-  const range = `${sheetName}!A1:E1`;
+  const range = `${sheetName}!A1:F1`;
   const existing = await sheets.spreadsheets.values.get({ spreadsheetId, range });
   const firstRow = existing.data.values?.[0] ?? [];
 
@@ -112,6 +112,16 @@ async function ensureHeader(
       range: `${sheetName}!E1`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [["Date"]] },
+    });
+  }
+
+  // Older sheets may lack the Type (employment) column.
+  if (String(firstRow[5] ?? "").trim().toLowerCase() !== "type") {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!F1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [["Type"]] },
     });
   }
 }
@@ -373,11 +383,12 @@ export async function appendRowsToSheet(
       job.jobLink,
       job.source,
       `'${date}`, // leading ' keeps YYYY-MM-DD as text (avoids serial like 46256)
+      job.employmentType || "",
     ]);
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${sheetName}!A:E`,
+      range: `${sheetName}!A:F`,
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values },

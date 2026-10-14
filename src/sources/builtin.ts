@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { getActiveProfile, type BuiltinSearch } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
@@ -103,6 +104,16 @@ function isBuiltinHost(url: string): boolean {
   } catch {
     return /builtin\.com/i.test(url);
   }
+}
+
+/** Schema.org JobPosting employmentType from detail-page LD+JSON (e.g. FULL_TIME). */
+function extractEmploymentTypeFromBuiltinHtml(html: string): string | undefined {
+  const matches = html.matchAll(/"employmentType"\s*:\s*"([^"]+)"/g);
+  for (const m of matches) {
+    const normalized = normalizeEmploymentType(m[1]);
+    if (normalized) return normalized;
+  }
+  return undefined;
 }
 
 /** Built In replaced public howToApply with applyUrl → ApplyRedirect (login often required). */
@@ -338,12 +349,16 @@ async function resolveEmployerApplyUrl(
   page: Page,
   listingUrl: string,
   label: string,
+  job: JobRecord,
 ): Promise<string | null> {
   progress(`  → ${label}`);
   await page.goto(listingUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await sleep(600);
   const html = await page.content();
   const init = parseJobPostInit(html);
+
+  const employmentType = extractEmploymentTypeFromBuiltinHtml(html);
+  if (employmentType) job.employmentType = employmentType;
 
   const redirect = extractApplyRedirectUrl(html);
   if (!redirect) {
@@ -416,6 +431,25 @@ export function isBuiltinListingLink(job: JobRecord): boolean {
   }
 }
 
+/** Public listing pages include schema.org employmentType — no login required. */
+async function enrichBuiltinEmploymentTypes(jobs: JobRecord[]): Promise<void> {
+  const pending = jobs.filter((j) => j.listingUrl && !j.employmentType);
+  if (pending.length === 0) return;
+
+  progress(`Built In: reading employment type for ${pending.length} listing(s)…`);
+  for (const job of pending) {
+    try {
+      const res = await httpGet(job.listingUrl!);
+      if (!res.ok) continue;
+      const type = extractEmploymentTypeFromBuiltinHtml(await res.text());
+      if (type) job.employmentType = type;
+    } catch {
+      // best-effort
+    }
+    if (config.pageDelayMs > 0) await sleep(Math.min(config.pageDelayMs, 200));
+  }
+}
+
 /**
  * Resolve employer apply URLs in a headed browser.
  * Listings are fetched via HTTP; browser is only for ApplyRedirect (+ manual login).
@@ -427,6 +461,8 @@ export async function enrichBuiltinApplyUrls(jobs: JobRecord[]): Promise<void> {
     await closeBuiltinBrowser();
     return;
   }
+
+  await enrichBuiltinEmploymentTypes(targets);
 
   const concurrency = Math.max(1, config.builtinApplyConcurrency);
   progress(
@@ -454,7 +490,7 @@ export async function enrichBuiltinApplyUrls(jobs: JobRecord[]): Promise<void> {
           const page = pages[idx]!;
           const label = `${job.company} — ${job.title}`;
           try {
-            const apply = await resolveEmployerApplyUrl(page, job.listingUrl!, label);
+            const apply = await resolveEmployerApplyUrl(page, job.listingUrl!, label, job);
             if (apply) {
               job.jobLink = apply;
               resolved += 1;

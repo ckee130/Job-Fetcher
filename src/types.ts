@@ -10,6 +10,8 @@ export type JobRecord = {
   listingUrl?: string;
   /** Stable id used for dedupe when present */
   externalId?: string;
+  /** Full-time, Contract, Part-time, … when the source provides it. */
+  employmentType?: string;
 };
 
 export type FetchResult = {
