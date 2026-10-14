@@ -165,10 +165,12 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
   let browser: Browser | null = null;
 
   try {
-    const proxy = playwrightProxyFromUrl(config.proxyUrl);
+    const useProxy = config.hiringCafeUseProxy;
+    const proxyUrl = useProxy ? config.proxyUrl : "";
+    const proxy = playwrightProxyFromUrl(proxyUrl);
 
     progress(
-      `Hiring Cafe: opening headed browser${proxy ? " (via proxy)" : " (direct)"}…`,
+      `Hiring Cafe: opening headed browser${proxy ? " (via proxy)" : " (direct, no proxy)"}…`,
     );
 
     browser = await chromium.launch({

@@ -49,6 +49,10 @@ export const config = {
    * Default 5 minutes.
    */
   hiringCafeChallengeTimeoutMs: intEnv("HIRINGCAFE_CHALLENGE_TIMEOUT_MS", 300_000),
+  /**
+   * Use PROXY_URL for the Hiring Cafe browser. Default off — datacenter proxies often trigger 403.
+   */
+  hiringCafeUseProxy: boolEnv("HIRINGCAFE_USE_PROXY", false),
   /** Quiet wait between Built In login checks (ms). Default 1 minute. */
   builtinLoginWaitMs: intEnv("BUILTIN_LOGIN_WAIT_MS", 60_000),
   /** How many times to wait-then-check for Built In login. */

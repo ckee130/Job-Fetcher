@@ -23,7 +23,7 @@ Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most p
 
 ### Hiring Cafe
 
-Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). All sources (Hiring Cafe, Built In, JobRight) use `PROXY_URL` when set.
+Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). Proxy is off for this browser by default (`HIRINGCAFE_USE_PROXY=0`) because datacenter proxies often get 403.
 
 ## Run
 
