@@ -42,6 +42,21 @@ Or pass `--profile` / set `PROFILE` in `.env`:
 npm run fetch -- --profile=Nathan
 ```
 
+Run **one source** with `--source=` (`hc` | `bi` | `jr`, or `hiringcafe` | `builtin` | `jobright`). Omit for all three:
+
+```bash
+npm run fetch:clinton -- --source=jr
+npm run fetch:clinton -- --source=hc
+npm run fetch:nathan -- --source=bi
+```
+
+Fetch **contract** roles only with `--type=contract` (also `--type:contract`). Hiring Cafe / Built In search for Contract; JobRight scans recommendations for Contract jobs posted in the last 3 days:
+
+```bash
+npm run fetch:clinton -- --type=contract
+npm run fetch:clinton -- --source=jr --type=contract
+```
+
 ## Profiles
 
 | Profile | Local path | Match |

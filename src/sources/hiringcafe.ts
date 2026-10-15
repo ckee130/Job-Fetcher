@@ -1,11 +1,12 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
-import { normalizeEmploymentType } from "../employment.js";
+import { matchesEmploymentTypeFilter, normalizeEmploymentType } from "../employment.js";
 import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { sleep } from "../http.js";
 import { progress } from "../progress.js";
+import { isContractMode } from "../runOptions.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 type HcHit = {
@@ -77,7 +78,13 @@ function buildSearchUrl(page: number): string {
   const profile = getActiveProfile();
   const path = (profile.hiringCafePath || "/").trim() || "/";
   const url = new URL(path, "https://hiringcafe.com");
-  url.searchParams.set("searchState", JSON.stringify(profile.hiringCafe));
+  const searchState: Record<string, unknown> = { ...profile.hiringCafe };
+  if (isContractMode()) {
+    searchState.commitmentTypes = ["Contract"];
+    // Align with JobRight contract window when type=contract.
+    searchState.dateFetchedPastNDays = 3;
+  }
+  url.searchParams.set("searchState", JSON.stringify(searchState));
   if (page > 0) url.searchParams.set("page", String(page));
   return url.toString();
 }
@@ -104,6 +111,8 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
   const employmentType = normalizeEmploymentType(
     hit.v5_processed_job_data?.commitment ?? hit.v5_processed_job_data?.employment_types,
   );
+
+  if (!matchesEmploymentTypeFilter(employmentType)) return null;
 
   const job: JobRecord = {
     company: decodeHtmlEntities(company),

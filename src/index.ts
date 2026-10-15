@@ -17,16 +17,70 @@ import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { fetchJobrightJobs } from "./sources/jobright.js";
 import { resolveProfileName, setActiveProfile } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
+import { resolveEmploymentTypeFilter } from "./runOptions.js";
 import type { FetchResult, JobRecord, JobSource, RunSummary } from "./types.js";
 
 /**
  * Source priority (fetch + within-run dedupe order):
  * 1. Hiring Cafe  2. Built In  3. JobRight
  * Earlier sources win when the same company/URL appears.
+ *
+ * Limit with `--source=hc|bi|jr` (or hiringcafe|builtin|jobright).
+ * Omit → all three. Example: `npm run fetch:clinton -- --source=jr`
+ *
+ * Filter employment type with `--type=contract` (also `--type:contract`).
  */
-const ENABLE_HIRINGCAFE = true;
-const ENABLE_BUILTIN = true;
-const ENABLE_JOBRIGHT = true;
+type EnabledSources = {
+  hiringcafe: boolean;
+  builtin: boolean;
+  jobright: boolean;
+};
+
+const SOURCE_ALIASES: Record<string, JobSource> = {
+  hc: "hiringcafe",
+  hiringcafe: "hiringcafe",
+  "hiring-cafe": "hiringcafe",
+  bi: "builtin",
+  builtin: "builtin",
+  "built-in": "builtin",
+  jr: "jobright",
+  jobright: "jobright",
+};
+
+function resolveEnabledSources(argv: string[]): EnabledSources {
+  const flags = argv
+    .filter((a) => a.startsWith("--source="))
+    .map((a) => a.slice("--source=".length).trim().toLowerCase())
+    .filter(Boolean);
+
+  if (flags.length === 0) {
+    return { hiringcafe: true, builtin: true, jobright: true };
+  }
+
+  const enabled: EnabledSources = {
+    hiringcafe: false,
+    builtin: false,
+    jobright: false,
+  };
+  const unknown: string[] = [];
+  for (const raw of flags) {
+    const key = SOURCE_ALIASES[raw];
+    if (!key) {
+      unknown.push(raw);
+      continue;
+    }
+    enabled[key] = true;
+  }
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown --source=${unknown.join(", ")}. Use hc|bi|jr (or hiringcafe|builtin|jobright).`,
+    );
+  }
+  if (!enabled.hiringcafe && !enabled.builtin && !enabled.jobright) {
+    throw new Error("No sources enabled. Pass --source=hc|bi|jr or omit for all.");
+  }
+  return enabled;
+}
 
 function skippedSource(source: JobSource): FetchResult {
   return { source, jobs: [], pagesFetched: 0 };
@@ -61,15 +115,19 @@ function emptySourceStats(): RunSummary["bySource"][JobSource] {
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const profile = setActiveProfile(resolveProfileName(argv));
+  const sources = resolveEnabledSources(argv);
+  const typeFilter = resolveEmploymentTypeFilter(argv);
   const startedAt = new Date().toISOString();
 
   const enabled = [
-    ENABLE_HIRINGCAFE && "hiringcafe",
-    ENABLE_BUILTIN && "builtin",
-    ENABLE_JOBRIGHT && "jobright",
+    sources.hiringcafe && "hiringcafe",
+    sources.builtin && "builtin",
+    sources.jobright && "jobright",
   ].filter(Boolean);
   console.log(
-    `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}`,
+    `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}${
+      typeFilter ? ` · type: ${typeFilter}` : ""
+    }`,
   );
   const proxy = config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);
@@ -83,7 +141,7 @@ async function main(): Promise<void> {
 
   // Hiring Cafe first so it wins within-run company/URL dedupe against other sources.
   let hiringCafeResult: FetchResult;
-  if (ENABLE_HIRINGCAFE) {
+  if (sources.hiringcafe) {
     progressPhase("Fetching Hiring Cafe");
     hiringCafeResult = await fetchHiringCafeJobs();
     bySource.hiringcafe = {
@@ -100,11 +158,11 @@ async function main(): Promise<void> {
     }
   } else {
     hiringCafeResult = skippedSource("hiringcafe");
-    progress("Hiring Cafe skipped (ENABLE_HIRINGCAFE=false)");
+    progress("Hiring Cafe skipped (--source)");
   }
 
   let builtinResult: FetchResult;
-  if (ENABLE_BUILTIN) {
+  if (sources.builtin) {
     progressPhase("Fetching Built In (listings only)");
     builtinResult = await fetchBuiltinJobs();
     bySource.builtin = {
@@ -121,11 +179,11 @@ async function main(): Promise<void> {
     }
   } else {
     builtinResult = skippedSource("builtin");
-    progress("Built In skipped (ENABLE_BUILTIN=false)");
+    progress("Built In skipped (--source)");
   }
 
   let jobrightResult: FetchResult;
-  if (ENABLE_JOBRIGHT) {
+  if (sources.jobright) {
     progressPhase("Fetching JobRight (recommendations)");
     jobrightResult = await fetchJobrightJobs();
     bySource.jobright = {
@@ -142,7 +200,7 @@ async function main(): Promise<void> {
     }
   } else {
     jobrightResult = skippedSource("jobright");
-    progress("JobRight skipped (ENABLE_JOBRIGHT=false)");
+    progress("JobRight skipped (--source)");
   }
 
   const allFetched = [

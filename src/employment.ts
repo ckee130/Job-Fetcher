@@ -1,3 +1,5 @@
+import { getEmploymentTypeFilter } from "./runOptions.js";
+
 /**
  * Normalize employment / commitment labels from Hiring Cafe, Built In, JobRight
  * into a short display value (Full-time, Contract, …).
@@ -54,4 +56,16 @@ function mapOneEmploymentLabel(raw: string): string | undefined {
 
   // Preserve unknown labels with light title-casing.
   return raw.trim().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** True when normalized type includes Contract (or filter is off). */
+export function matchesEmploymentTypeFilter(
+  employmentType: string | undefined,
+): boolean {
+  const filter = getEmploymentTypeFilter();
+  if (!filter) return true;
+  if (filter === "contract") {
+    return Boolean(employmentType && /(^|,\s*)Contract(,|$)/.test(employmentType));
+  }
+  return true;
 }
