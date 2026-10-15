@@ -4,7 +4,7 @@ import path from "node:path";
 import { google, type sheets_v4 } from "googleapis";
 
 import { config } from "./config.js";
-import { filterJobsByCvDir, filterJobsRequiringPeerCv } from "./cv.js";
+import { filterJobsByCvDir, filterJobsByPeerCvRoles } from "./cv.js";
 import { progress } from "./progress.js";
 import { getActiveProfile } from "./profiles.js";
 import type { JobRecord } from "./types.js";
@@ -148,53 +148,6 @@ async function loadExistingCompanies(
   return companies;
 }
 
-export function companyRoleKey(company: string, role: string): string {
-  return `${normalizeCompany(company)}||${normalizeText(role)}`;
-}
-
-/** Company+role pairs already on the sheet (normalized). */
-async function loadExistingCompanyRoles(
-  sheets: sheets_v4.Sheets,
-  spreadsheetId: string,
-  sheetName: string,
-): Promise<Set<string>> {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${sheetName}!A:B`,
-  });
-  const rows = res.data.values ?? [];
-  const pairs = new Set<string>();
-  for (let i = 0; i < rows.length; i += 1) {
-    const company = String(rows[i]?.[0] ?? "").trim();
-    const role = String(rows[i]?.[1] ?? "").trim();
-    if (!company) continue;
-    if (i === 0 && company.toLowerCase() === "company") continue;
-    const key = companyRoleKey(company, role);
-    if (key !== "||") pairs.add(key);
-  }
-  return pairs;
-}
-
-/**
- * Skip jobs whose company+role already exists on a peer sheet (Blake → Clinton/Nathan).
- */
-export function filterJobsByPeerSheetRoles(
-  jobs: JobRecord[],
-  existingCompanyRoles: Set<string>,
-): { kept: JobRecord[]; skipped: number } {
-  const kept: JobRecord[] = [];
-  let skipped = 0;
-  for (const job of jobs) {
-    const key = companyRoleKey(job.company, job.title);
-    if (!key || key === "||" || existingCompanyRoles.has(key)) {
-      skipped += 1;
-      continue;
-    }
-    kept.push(job);
-  }
-  return { kept, skipped };
-}
-
 /**
  * Skip when the company already exists on the sheet or earlier in this run.
  * Only one row per company — different titles at the same company are ignored.
@@ -275,43 +228,20 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       }
     }
 
-    let afterPeer = afterCv;
+    let afterPeerRole = afterCv;
     let skippedByPeerCv = 0;
-    const peerNames = profile.requireCvInProfiles ?? [];
-    if (peerNames.length > 0) {
-      progress(`checking peer CV folders (${peerNames.join(", ")})…`);
-      const peerFilter = filterJobsRequiringPeerCv(afterCv, peerNames);
-      afterPeer = peerFilter.kept;
-      skippedByPeerCv = peerFilter.skipped;
-      if (skippedByPeerCv > 0) {
-        progress(
-          `skipped ${skippedByPeerCv} job(s) — company not in ${peerNames.join(" or ")} CV folder`,
-        );
-      }
-    }
-
-    let afterPeerRole = afterPeer;
     let skippedByPeerRole = 0;
-    if (profile.skipSameRoleOnPeerSheets && peerNames.length > 0) {
-      progress(`checking peer sheets for same company+role (${peerNames.join(", ")})…`);
-      const peerRoles = new Set<string>();
-      for (const peer of peerNames) {
-        try {
-          const roles = await loadExistingCompanyRoles(sheets, spreadsheetId, peer);
-          progress(`  ${peer} sheet: ${roles.size} company+role row(s)`);
-          for (const key of roles) peerRoles.add(key);
-        } catch (err) {
-          progress(
-            `  ${peer} sheet: skipped (${err instanceof Error ? err.message : String(err)})`,
-          );
-        }
-      }
-      const roleFilter = filterJobsByPeerSheetRoles(afterPeer, peerRoles);
-      afterPeerRole = roleFilter.kept;
-      skippedByPeerRole = roleFilter.skipped;
+    const peerNames = profile.skipSameRoleOnPeerCvs ?? [];
+    if (peerNames.length > 0) {
+      progress(
+        `checking peer CV files for same company+role (${peerNames.join(", ")})…`,
+      );
+      const peerFilter = filterJobsByPeerCvRoles(afterCv, peerNames);
+      afterPeerRole = peerFilter.kept;
+      skippedByPeerRole = peerFilter.skipped;
       if (skippedByPeerRole > 0) {
         progress(
-          `skipped ${skippedByPeerRole} job(s) — same company+role already on ${peerNames.join(" or ")} sheet`,
+          `skipped ${skippedByPeerRole} job(s) — same company+role already in ${peerNames.join(" or ")} CV folder`,
         );
       }
     }

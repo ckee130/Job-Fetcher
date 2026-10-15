@@ -47,15 +47,11 @@ export type Profile = {
   /** Three Built In saved searches per profile. */
   builtinSearches: BuiltinSearch[];
   /**
-   * Only upload when the company already has a CV file in at least one of
-   * these peer profile folders (e.g. Blake → Clinton or Nathan).
+   * Peer CV folders for company+role local dedupe (Blake → Clinton/Nathan).
+   * Skip when a peer filename already has the same company + role.
+   * Same company with a different role is still uploaded. Peer sheets are not checked.
    */
-  requireCvInProfiles?: readonly string[];
-  /**
-   * When true (with requireCvInProfiles), also skip jobs whose company+role
-   * already exists on a peer Google Sheet tab.
-   */
-  skipSameRoleOnPeerSheets?: boolean;
+  skipSameRoleOnPeerCvs?: readonly string[];
   /** When true, skip local CV folder dedupe — sheet company check only. */
   skipCvDirCheck?: boolean;
   /** Absolute resume root for this profile (overrides CV_DIR template). */
@@ -196,10 +192,8 @@ export const PROFILES = {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
-    /** Same searches as Clinton; company must exist in Clinton/Nathan CVs. */
-    requireCvInProfiles: ["Clinton", "Nathan"],
-    /** Skip when Clinton or Nathan sheet already has the same company + role. */
-    skipSameRoleOnPeerSheets: true,
+    /** Same searches as Clinton; skip same company+role already in Clinton/Nathan CV files. */
+    skipSameRoleOnPeerCvs: ["Clinton", "Nathan"],
     hiringCafe: CLINTON_HIRING_CAFE,
     builtinSearches: CLINTON_BUILTIN_SEARCHES,
   },

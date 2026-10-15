@@ -30,12 +30,12 @@ export function printRunSummary(summary: RunSummary): void {
   }
   if (summary.skippedByPeerCv) {
     console.log(
-      `  skipped (company not in peer CV folder): ${summary.skippedByPeerCv}`,
+      `  skipped (peer CV gate): ${summary.skippedByPeerCv}`,
     );
   }
   if (summary.skippedByPeerRole) {
     console.log(
-      `  skipped (same company+role on peer sheet): ${summary.skippedByPeerRole}`,
+      `  skipped (same company+role in peer CV files): ${summary.skippedByPeerRole}`,
     );
   }
   if (summary.skippedDuplicates) {

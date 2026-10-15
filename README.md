@@ -53,7 +53,7 @@ npm run fetch -- --profile=Nathan
 |---------|----------------|
 | **Clinton** | US remote; YoE 5–10; Built In senior/expert-leader |
 | **Nathan** | US remote; YoE 4–8; Built In senior |
-| **Blake** | Same as Clinton; company in Clinton/Nathan CVs; skip same company+role on those sheets |
+| **Blake** | Same as Clinton; skip same company+role already in Clinton/Nathan CV filenames (peer sheets not checked) |
 | **Eric / Jay / Daniel** | Same as Nathan; local-only dedupe |
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
@@ -63,7 +63,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 1. Fetch Hiring Cafe → Built In → JobRight (Hiring Cafe wins within-run company/URL dedupe)
 2. Within-run dedupe (same company / apply URL across sources)
 3. Title filter (manager, director, designer, VP, owner)
-4. Local company check (file or subfolder) → Blake peer checks → sheet company check (skipped for Eric/Jay/Daniel)
+4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel)
 5. Resolve Built In employer apply URLs for jobs that will upload
 6. Upload to profile tab with date
 

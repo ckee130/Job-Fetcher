@@ -65,6 +65,35 @@ function listFilenames(dir: string): string[] {
   }
 }
 
+/** Resume packages in Clinton/Nathan/Blake folders. */
+function isCvResumeFile(name: string): boolean {
+  return /\.(docx\.zip|zip|docx|pdf|rar|7z)$/i.test(name);
+}
+
+/** All resume files in a CV dir (zip, docx, rar, …) — top-level only. */
+function listCvResumeFilenames(dir: string): string[] {
+  return listFilenames(dir).filter(isCvResumeFile);
+}
+
+function countCvResumeByExt(filenames: string[]): string {
+  const counts = { zip: 0, docx: 0, rar: 0, pdf: 0, other: 0 };
+  for (const name of filenames) {
+    if (/\.docx\.zip$/i.test(name) || /\.zip$/i.test(name)) counts.zip += 1;
+    else if (/\.docx$/i.test(name)) counts.docx += 1;
+    else if (/\.rar$/i.test(name)) counts.rar += 1;
+    else if (/\.pdf$/i.test(name)) counts.pdf += 1;
+    else counts.other += 1;
+  }
+  const parts = [
+    `${counts.zip} zip`,
+    `${counts.docx} docx`,
+    `${counts.rar} rar`,
+    `${counts.pdf} pdf`,
+  ];
+  if (counts.other) parts.push(`${counts.other} other`);
+  return parts.join(", ");
+}
+
 function listSubdirNames(dir: string): string[] {
   try {
     return fs
@@ -114,7 +143,64 @@ export function filterJobsByCvDir(
   return { kept, skipped, cvDir };
 }
 
-export function filterJobsRequiringPeerCv(
+/** `{person}-{YYYY-MM-DD}-{company}-{role}.ext` → stem after date. */
+function cvCompanyRoleStem(filename: string): string {
+  const base = filename.replace(/\.(docx\.zip|zip|docx|pdf|rar|7z)$/i, "");
+  const m = base.match(/^[a-z]+-\d{4}-\d{2}-\d{2}-(.+)$/i);
+  return (m?.[1] || "").trim();
+}
+
+/** Normalize for CV slug compare: "Capital One" / "capital-one" → "capital-one". */
+function normalizeCvSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function cvRolesMatch(roleFromFile: string, jobTitle: string): boolean {
+  const a = normalizeCvSlug(roleFromFile);
+  const b = normalizeCvSlug(jobTitle);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // Filenames are often truncated ("…full-stack-applica").
+  if (a.startsWith(b) || b.startsWith(a)) return true;
+  return false;
+}
+
+/** True if a peer CV filename is for this company + role. */
+export function peerCvHasSameCompanyRole(
+  company: string,
+  title: string,
+  filenames: string[],
+): boolean {
+  const companySlugs = companyNameMatchVariants(company)
+    .map(normalizeCvSlug)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  if (companySlugs.length === 0 || filenames.length === 0) return false;
+
+  for (const filename of filenames) {
+    const stem = normalizeCvSlug(cvCompanyRoleStem(filename));
+    if (!stem) continue;
+    for (const companySlug of companySlugs) {
+      if (stem === companySlug) continue;
+      if (!stem.startsWith(`${companySlug}-`)) continue;
+      const rolePart = stem.slice(companySlug.length + 1);
+      if (cvRolesMatch(rolePart, title)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Skip jobs whose company+role already appears in a peer CV filename
+ * (`person-YYYY-MM-DD-company-role.ext`). Same company, different role → keep.
+ */
+export function filterJobsByPeerCvRoles(
   jobs: JobRecord[],
   peerProfileNames: readonly string[],
 ): { kept: JobRecord[]; skipped: number; peerDirs: string[] } {
@@ -130,8 +216,10 @@ export function filterJobsRequiringPeerCv(
   }
 
   const peerFilenames = peerDirs.map((dir) => {
-    const filenames = listFilenames(dir);
-    progress(`peer CV dir: ${dir} (${filenames.length} file(s))`);
+    const filenames = listCvResumeFilenames(dir);
+    progress(
+      `peer CV dir (company+role): ${dir} — ${filenames.length} file(s) (${countCvResumeByExt(filenames)})`,
+    );
     return filenames;
   });
 
@@ -139,10 +227,10 @@ export function filterJobsRequiringPeerCv(
   let skipped = 0;
 
   for (const job of jobs) {
-    const found = peerFilenames.some((filenames) =>
-      companyHasCvFile(job.company, filenames),
+    const hit = peerFilenames.some((filenames) =>
+      peerCvHasSameCompanyRole(job.company, job.title, filenames),
     );
-    if (!found) {
+    if (hit) {
       skipped += 1;
       continue;
     }
