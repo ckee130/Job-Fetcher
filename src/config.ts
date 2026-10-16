@@ -50,9 +50,15 @@ export const config = {
    */
   hiringCafeChallengeTimeoutMs: intEnv("HIRINGCAFE_CHALLENGE_TIMEOUT_MS", 300_000),
   /**
-   * Use PROXY_URL for the Hiring Cafe browser. Default off — datacenter proxies often trigger 403.
+   * Use PROXY_URL for the Hiring Cafe browser from the start.
+   * Default off — start direct so a captcha can be solved, then fall back to the proxy.
    */
   hiringCafeUseProxy: boolEnv("HIRINGCAFE_USE_PROXY", false),
+  /**
+   * If a captcha is still up after this long (direct, no proxy), reopen via PROXY_URL.
+   * Default 60s. Ignored when HIRINGCAFE_USE_PROXY=1 or PROXY_URL is empty.
+   */
+  hiringCafeProxyFallbackMs: intEnv("HIRINGCAFE_PROXY_FALLBACK_MS", 60_000),
   /** Quiet wait between Built In login checks (ms). Default 1 minute. */
   builtinLoginWaitMs: intEnv("BUILTIN_LOGIN_WAIT_MS", 60_000),
   /** How many times to wait-then-check for Built In login. */

@@ -23,7 +23,7 @@ Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most p
 
 ### Hiring Cafe
 
-Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser; the fetcher waits up to `HIRINGCAFE_CHALLENGE_TIMEOUT_MS` (default 5 minutes). Proxy is off for this browser by default (`HIRINGCAFE_USE_PROXY=0`) because datacenter proxies often get 403.
+Uses a **headed Chromium** window (Playwright). If a bot check appears, complete it in the browser. The fetcher starts **without** a proxy; if the check is still up after `HIRINGCAFE_PROXY_FALLBACK_MS` (default 60s), it reopens **via `PROXY_URL`**. Set `HIRINGCAFE_USE_PROXY=1` to use the proxy from the start.
 
 ## Run
 
@@ -42,19 +42,12 @@ Or pass `--profile` / set `PROFILE` in `.env`:
 npm run fetch -- --profile=Nathan
 ```
 
-Run **one source** with `--source=` (`hc` | `bi` | `jr`, or `hiringcafe` | `builtin` | `jobright`). Omit for all three:
+Run **one source** with `--src=` / `--source=` (`hc` | `bi` | `jr`, or `hiringcafe` | `builtin` | `jobright`). Omit for all three:
 
 ```bash
-npm run fetch:clinton -- --source=jr
-npm run fetch:clinton -- --source=hc
-npm run fetch:nathan -- --source=bi
-```
-
-Fetch **contract** roles only with `--type=contract` (also `--type:contract`). Hiring Cafe / Built In search for Contract; JobRight scans recommendations for Contract jobs posted in the last 3 days:
-
-```bash
-npm run fetch:clinton -- --type=contract
-npm run fetch:clinton -- --source=jr --type=contract
+npm run fetch:clinton -- --src=jr
+npm run fetch:clinton -- --src=hc
+npm run fetch:clinton -- --src=bi
 ```
 
 ## Profiles

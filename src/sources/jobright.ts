@@ -2,16 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { config } from "../config.js";
-import { matchesEmploymentTypeFilter, normalizeEmploymentType } from "../employment.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, httpPostJson, sleep } from "../http.js";
 import { getActiveProfile } from "../profiles.js";
 import { progress } from "../progress.js";
-import {
-  isContractMode,
-  JOBRIGHT_CONTRACT_MAX_AGE_DAYS,
-  JOBRIGHT_CONTRACT_SCAN_PAGES,
-} from "../runOptions.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 const API_BASE = "https://swan-api.jobright.ai";
@@ -34,8 +29,6 @@ type JobrightApiJob = {
     applyLink?: string;
     jobLocation?: string;
     employmentType?: string;
-    publishTime?: string;
-    publishTimeDesc?: string;
   };
   companyResult?: {
     companyName?: string;
@@ -263,16 +256,6 @@ function isLinkedInJobUrl(url: string): boolean {
   }
 }
 
-/** Keep jobs posted within the last N days (JobRight `publishTime`). */
-function isPostedWithinDays(publishTime: string | undefined, days: number): boolean {
-  if (!publishTime?.trim()) return false;
-  const raw = publishTime.trim().replace(" ", "T");
-  const ms = Date.parse(raw) || Date.parse(`${raw}Z`);
-  if (!Number.isFinite(ms)) return false;
-  const ageMs = Date.now() - ms;
-  return ageMs >= 0 && ageMs <= days * 24 * 60 * 60 * 1000;
-}
-
 function parseJob(raw: JobrightApiJob): JobRecord | null {
   const jr = raw.jobResult ?? {};
   const cr = raw.companyResult ?? {};
@@ -290,13 +273,6 @@ function parseJob(raw: JobrightApiJob): JobRecord | null {
   if (!jobLink) return null;
 
   const employmentType = normalizeEmploymentType(jr.employmentType);
-  if (!matchesEmploymentTypeFilter(employmentType)) return null;
-
-  if (isContractMode()) {
-    if (!isPostedWithinDays(jr.publishTime, JOBRIGHT_CONTRACT_MAX_AGE_DAYS)) {
-      return null;
-    }
-  }
 
   const job: JobRecord = {
     company,
@@ -318,7 +294,6 @@ function maxJobsWanted(): number {
 
 function maxPagesToScan(): number {
   if (config.maxPages > 0) return config.maxPages;
-  if (isContractMode()) return JOBRIGHT_CONTRACT_SCAN_PAGES;
   return Math.ceil(maxJobsWanted() / PAGE_SIZE) + 2;
 }
 
@@ -345,15 +320,7 @@ export async function fetchJobrightJobs(): Promise<FetchResult> {
     const maxPages = maxPagesToScan();
     let position = 0;
     let emptyPages = 0;
-    let scanned = 0;
-
-    if (isContractMode()) {
-      progress(
-        `JobRight: collecting up to ${wanted} Contract job(s) posted ≤${JOBRIGHT_CONTRACT_MAX_AGE_DAYS}d (scan ≤${maxPages} pages)…`,
-      );
-    } else {
-      progress(`JobRight: fetching up to ${wanted} recommended job(s)…`);
-    }
+    progress(`JobRight: fetching up to ${wanted} recommended job(s)…`);
 
     while (jobs.length < wanted && pagesFetched < maxPages) {
       if (position > 0 && config.jobrightPageDelayMs > 0) {
@@ -384,7 +351,6 @@ export async function fetchJobrightJobs(): Promise<FetchResult> {
         continue;
       }
       emptyPages = 0;
-      scanned += rawList.length;
 
       for (const raw of rawList) {
         const job = parseJob(raw);
@@ -396,11 +362,7 @@ export async function fetchJobrightJobs(): Promise<FetchResult> {
         if (jobs.length >= wanted) break;
       }
 
-      progress(
-        isContractMode()
-          ? `JobRight: ${jobs.length} contract job(s) (scanned ${scanned}, position=${position})`
-          : `JobRight: ${jobs.length} job(s) (position=${position})`,
-      );
+      progress(`JobRight: ${jobs.length} job(s) (position=${position})`);
       position += PAGE_SIZE;
     }
 

@@ -17,7 +17,6 @@ import { fetchHiringCafeJobs } from "./sources/hiringcafe.js";
 import { fetchJobrightJobs } from "./sources/jobright.js";
 import { resolveProfileName, setActiveProfile } from "./profiles.js";
 import { proxyHostForLog } from "./proxy.js";
-import { resolveEmploymentTypeFilter } from "./runOptions.js";
 import type { FetchResult, JobRecord, JobSource, RunSummary } from "./types.js";
 
 /**
@@ -25,10 +24,8 @@ import type { FetchResult, JobRecord, JobSource, RunSummary } from "./types.js";
  * 1. Hiring Cafe  2. Built In  3. JobRight
  * Earlier sources win when the same company/URL appears.
  *
- * Limit with `--source=hc|bi|jr` (or hiringcafe|builtin|jobright).
- * Omit → all three. Example: `npm run fetch:clinton -- --source=jr`
- *
- * Filter employment type with `--type=contract` (also `--type:contract`).
+ * Limit with `--source=hc|bi|jr` (alias `--src=`).
+ * Omit → all three. Example: `npm run fetch:clinton -- --src=bi`
  */
 type EnabledSources = {
   hiringcafe: boolean;
@@ -49,8 +46,12 @@ const SOURCE_ALIASES: Record<string, JobSource> = {
 
 function resolveEnabledSources(argv: string[]): EnabledSources {
   const flags = argv
-    .filter((a) => a.startsWith("--source="))
-    .map((a) => a.slice("--source=".length).trim().toLowerCase())
+    .map((a) => {
+      if (a.startsWith("--source=")) return a.slice("--source=".length);
+      if (a.startsWith("--src=")) return a.slice("--src=".length);
+      return "";
+    })
+    .map((v) => v.trim().toLowerCase())
     .filter(Boolean);
 
   if (flags.length === 0) {
@@ -73,11 +74,11 @@ function resolveEnabledSources(argv: string[]): EnabledSources {
   }
   if (unknown.length > 0) {
     throw new Error(
-      `Unknown --source=${unknown.join(", ")}. Use hc|bi|jr (or hiringcafe|builtin|jobright).`,
+      `Unknown --src/--source=${unknown.join(", ")}. Use hc|bi|jr (or hiringcafe|builtin|jobright).`,
     );
   }
   if (!enabled.hiringcafe && !enabled.builtin && !enabled.jobright) {
-    throw new Error("No sources enabled. Pass --source=hc|bi|jr or omit for all.");
+    throw new Error("No sources enabled. Pass --src=hc|bi|jr or omit for all.");
   }
   return enabled;
 }
@@ -116,7 +117,6 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const profile = setActiveProfile(resolveProfileName(argv));
   const sources = resolveEnabledSources(argv);
-  const typeFilter = resolveEmploymentTypeFilter(argv);
   const startedAt = new Date().toISOString();
 
   const enabled = [
@@ -125,9 +125,7 @@ async function main(): Promise<void> {
     sources.jobright && "jobright",
   ].filter(Boolean);
   console.log(
-    `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}${
-      typeFilter ? ` · type: ${typeFilter}` : ""
-    }`,
+    `Job fetcher — profile: ${profile.name} · sources: ${enabled.join(" + ") || "(none)"}`,
   );
   const proxy = config.proxyUrl;
   console.log(`  proxy:   ${proxy ? proxyHostForLog(proxy) : "no"}`);

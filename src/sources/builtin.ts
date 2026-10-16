@@ -1,12 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
-import { matchesEmploymentTypeFilter, normalizeEmploymentType } from "../employment.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { getActiveProfile, type BuiltinSearch } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { httpGet, sleep } from "../http.js";
 import { progress } from "../progress.js";
-import { isContractMode } from "../runOptions.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 function decodeHtmlEntities(text: string): string {
@@ -26,23 +25,9 @@ function stripTags(html: string): string {
 }
 
 function buildPageUrl(search: BuiltinSearch, page: number): string {
-  let path = search.path;
-  // Inject /contract before seniority segments when filtering to contract roles.
-  if (isContractMode() && !/\/contract(\/|$)/i.test(path)) {
-    path = path.replace(
-      /\/(senior|mid-level|junior|entry|intern|expert-leader)(\/|$)/i,
-      "/contract/$1$2",
-    );
-    if (!/\/contract(\/|$)/i.test(path)) {
-      path = path.replace(/\/?$/, "/contract");
-    }
-  }
-  const url = new URL(path, "https://builtin.com");
+  const url = new URL(search.path, "https://builtin.com");
   for (const [k, v] of Object.entries(search.params)) {
     url.searchParams.set(k, v);
-  }
-  if (isContractMode()) {
-    url.searchParams.set("daysSinceUpdated", "3");
   }
   if (page > 1) url.searchParams.set("page", String(page));
   return url.toString();
@@ -263,11 +248,7 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
   let pagesFetched = 0;
 
   try {
-    progress(
-      isContractMode()
-        ? "Built In: fetching contract listings via HTTP…"
-        : "Built In: fetching listings via HTTP…",
-    );
+    progress("Built In: fetching listings via HTTP…");
     for (let i = 0; i < searches.length; i += 1) {
       if (i > 0 && config.pageDelayMs > 0) await sleep(config.pageDelayMs);
       pagesFetched += await fetchOneBuiltinSearchHttp(
@@ -276,17 +257,6 @@ export async function fetchBuiltinJobs(): Promise<FetchResult> {
         searches.length,
         seenIds,
         jobs,
-      );
-    }
-
-    if (isContractMode() && jobs.length > 0) {
-      await enrichBuiltinEmploymentTypes(jobs);
-      const before = jobs.length;
-      const kept = jobs.filter((j) => matchesEmploymentTypeFilter(j.employmentType));
-      jobs.length = 0;
-      jobs.push(...kept);
-      progress(
-        `Built In: contract filter kept ${jobs.length}/${before} (employment type from listing pages)`,
       );
     }
 
@@ -462,7 +432,7 @@ export function isBuiltinListingLink(job: JobRecord): boolean {
 }
 
 /** Public listing pages include schema.org employmentType — no login required. */
-async function enrichBuiltinEmploymentTypes(jobs: JobRecord[]): Promise<void> {
+export async function enrichBuiltinEmploymentTypes(jobs: JobRecord[]): Promise<void> {
   const pending = jobs.filter((j) => j.listingUrl && !j.employmentType);
   if (pending.length === 0) return;
 

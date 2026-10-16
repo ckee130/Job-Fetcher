@@ -1,12 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 
 import { config } from "../config.js";
-import { matchesEmploymentTypeFilter, normalizeEmploymentType } from "../employment.js";
+import { normalizeEmploymentType } from "../employment.js";
 import { getActiveProfile } from "../profiles.js";
 import { shouldSkipJob } from "../filters.js";
 import { sleep } from "../http.js";
 import { progress } from "../progress.js";
-import { isContractMode } from "../runOptions.js";
 import type { FetchResult, JobRecord } from "../types.js";
 
 type HcHit = {
@@ -78,13 +77,7 @@ function buildSearchUrl(page: number): string {
   const profile = getActiveProfile();
   const path = (profile.hiringCafePath || "/").trim() || "/";
   const url = new URL(path, "https://hiringcafe.com");
-  const searchState: Record<string, unknown> = { ...profile.hiringCafe };
-  if (isContractMode()) {
-    searchState.commitmentTypes = ["Contract"];
-    // Align with JobRight contract window when type=contract.
-    searchState.dateFetchedPastNDays = 3;
-  }
-  url.searchParams.set("searchState", JSON.stringify(searchState));
+  url.searchParams.set("searchState", JSON.stringify(profile.hiringCafe));
   if (page > 0) url.searchParams.set("page", String(page));
   return url.toString();
 }
@@ -112,8 +105,6 @@ function normalizeHit(hit: HcHit, slugBySuffix: Map<string, string>): JobRecord 
     hit.v5_processed_job_data?.commitment ?? hit.v5_processed_job_data?.employment_types,
   );
 
-  if (!matchesEmploymentTypeFilter(employmentType)) return null;
-
   const job: JobRecord = {
     company: decodeHtmlEntities(company),
     title: decodeHtmlEntities(title),
@@ -139,6 +130,13 @@ function playwrightProxyFromUrl(proxyUrl: string):
     return username ? { server, username, password } : { server };
   } catch {
     return { server: proxyUrl };
+  }
+}
+
+class HiringCafeChallengeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HiringCafeChallengeError";
   }
 }
 
@@ -176,22 +174,32 @@ async function readPageJobs(
   return { hits, props, html };
 }
 
-export async function fetchHiringCafeJobs(): Promise<FetchResult> {
+async function runHiringCafeSession(useProxy: boolean): Promise<FetchResult> {
   const jobs: JobRecord[] = [];
   const seenIds = new Set<string>();
   let pagesFetched = 0;
   let pageNo = 0;
-
   let browser: Browser | null = null;
 
-  try {
-    const useProxy = config.hiringCafeUseProxy;
-    const proxyUrl = useProxy ? config.proxyUrl : "";
-    const proxy = playwrightProxyFromUrl(proxyUrl);
+  const proxyUrl = useProxy ? config.proxyUrl : "";
+  const proxy = playwrightProxyFromUrl(proxyUrl);
+  const canFallbackToProxy = !useProxy && Boolean(config.proxyUrl);
+  const waitMs = canFallbackToProxy
+    ? Math.min(
+        Math.max(1_000, config.hiringCafeProxyFallbackMs),
+        config.hiringCafeChallengeTimeoutMs,
+      )
+    : config.hiringCafeChallengeTimeoutMs;
 
+  try {
     progress(
       `Hiring Cafe: opening headed browser${proxy ? " (via proxy)" : " (direct, no proxy)"}…`,
     );
+    if (canFallbackToProxy) {
+      progress(
+        `Hiring Cafe: if a captcha is still up after ${Math.round(waitMs / 1000)}s, retrying via proxy…`,
+      );
+    }
 
     browser = await chromium.launch({
       headless: false,
@@ -207,7 +215,7 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
     });
 
     const page = await context.newPage();
-    page.setDefaultTimeout(config.hiringCafeChallengeTimeoutMs);
+    page.setDefaultTimeout(waitMs);
 
     while (true) {
       if (config.maxPages > 0 && pagesFetched >= config.maxPages) break;
@@ -217,10 +225,10 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
 
       try {
-        await waitForHiringCafeReady(page, config.hiringCafeChallengeTimeoutMs);
+        await waitForHiringCafeReady(page, waitMs);
       } catch {
-        throw new Error(
-          `Timed out waiting for Hiring Cafe after bot check (${Math.round(config.hiringCafeChallengeTimeoutMs / 1000)}s). Complete the challenge in the open browser and re-run.`,
+        throw new HiringCafeChallengeError(
+          `Timed out waiting for Hiring Cafe after bot check (${Math.round(waitMs / 1000)}s).`,
         );
       }
 
@@ -254,16 +262,43 @@ export async function fetchHiringCafeJobs(): Promise<FetchResult> {
     }
 
     return { source: "hiringcafe", jobs, pagesFetched };
-  } catch (err) {
-    return {
-      source: "hiringcafe",
-      jobs,
-      pagesFetched,
-      error: err instanceof Error ? err.message : String(err),
-    };
   } finally {
     if (browser) {
       await browser.close().catch(() => undefined);
     }
+  }
+}
+
+export async function fetchHiringCafeJobs(): Promise<FetchResult> {
+  const startWithProxy = config.hiringCafeUseProxy && Boolean(config.proxyUrl);
+
+  try {
+    return await runHiringCafeSession(startWithProxy);
+  } catch (err) {
+    const canRetryWithProxy =
+      !startWithProxy &&
+      Boolean(config.proxyUrl) &&
+      err instanceof HiringCafeChallengeError;
+
+    if (canRetryWithProxy) {
+      progress("Hiring Cafe: captcha still present — reopening via proxy…");
+      try {
+        return await runHiringCafeSession(true);
+      } catch (retryErr) {
+        return {
+          source: "hiringcafe",
+          jobs: [],
+          pagesFetched: 0,
+          error: retryErr instanceof Error ? retryErr.message : String(retryErr),
+        };
+      }
+    }
+
+    return {
+      source: "hiringcafe",
+      jobs: [],
+      pagesFetched: 0,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
