@@ -520,16 +520,8 @@ function readHiringCafeApply() {
   return { applyUrl, href: link?.href || "" };
 }
 
-function isDiceHost(url) {
-  try {
-    return /(^|\.)dice\.com$/i.test(new URL(url).hostname);
-  } catch {
-    return /dice\.com/i.test(url || "");
-  }
-}
-
 function isEmployerUrl(url) {
-  return isExternal(url) && !isHiringCafeHost(url) && !isDiceHost(url);
+  return isExternal(url) && !isHiringCafeHost(url);
 }
 
 async function resolveHiringCafeJob(job) {
@@ -593,96 +585,6 @@ async function resolveHiringCafeJobs(jobs) {
         done += 1;
         report(
           `Employer link ${done}/${pending.length} ${linked ? "linked" : "no employer link"} — ${job.company} — ${job.title}`,
-        );
-      }),
-    );
-  }
-}
-
-function readDiceApply() {
-  const html = document.documentElement?.innerHTML || "";
-  const decoded = html.replace(/\\"/g, '"').replace(/\\\//g, "/").replace(/\\u0026/g, "&");
-  let applyUrl = "";
-  const detail = decoded.match(
-    /"type"\s*:\s*"APPLY_[A-Z_]+"\s*,\s*"url"\s*:\s*("(?:\\.|[^"\\])*"|null)/,
-  );
-  if (detail && detail[1] && detail[1] !== "null") {
-    applyUrl = detail[1].replace(/^"|"$/g, "");
-  }
-  if (!applyUrl || /dice\.com/i.test(applyUrl)) {
-    const direct = decoded.match(/"directApplyNewTabUrl"\s*:\s*"([^"]+)"/);
-    if (direct && /^https?:/i.test(direct[1]) && !direct[1].startsWith("$")) applyUrl = direct[1];
-  }
-  const control = [...document.querySelectorAll("a, button")].find((node) => {
-    const text = node.innerText || "";
-    return /apply/i.test(text) && /company/i.test(text);
-  });
-  return { applyUrl, href: control?.href || "", hasCompanyButton: Boolean(control) };
-}
-
-async function resolveDiceJob(job) {
-  const listing = job.listingUrl || job.jobLink;
-  if (!listing || !isDiceHost(listing)) return job.jobLink;
-  checkStop();
-  const tab = await chrome.tabs.create({ url: listing, active: false });
-  if (tab.id != null) current?.extraTabs.add(tab.id);
-  try {
-    checkStop();
-    await waitForTab(tab.id);
-    const [injected] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: readDiceApply,
-    });
-    const found = injected?.result || {};
-    if (isEmployerUrl(found.applyUrl)) return found.applyUrl;
-    if (isEmployerUrl(found.href)) return found.href;
-    if (!found.hasCompanyButton) return job.jobLink;
-
-    const watch = waitForExternalUrl(tab.id, 12000, isEmployerUrl);
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        const control = [...document.querySelectorAll("a, button")].find((node) => {
-          const text = node.innerText || "";
-          return /apply/i.test(text) && /company/i.test(text);
-        });
-        control?.click();
-      },
-    });
-    const landed = await watch;
-    if (isEmployerUrl(landed)) return landed;
-    const finalUrl = (await chrome.tabs.get(tab.id)).url || "";
-    return isEmployerUrl(finalUrl) ? finalUrl : job.jobLink;
-  } finally {
-    if (tab.id != null) {
-      current?.extraTabs.delete(tab.id);
-      await chrome.tabs.remove(tab.id).catch(() => {});
-    }
-  }
-}
-
-async function resolveDiceJobs(jobs) {
-  const pending = jobs.filter((job) => job.source === "dice" && isDiceHost(job.jobLink));
-  let done = 0;
-  const concurrency = 3;
-  for (let i = 0; i < pending.length; i += concurrency) {
-    checkStop();
-    const batch = pending.slice(i, i + concurrency);
-    await Promise.all(
-      batch.map(async (job) => {
-        let linked = false;
-        try {
-          const apply = await resolveDiceJob(job);
-          if (isEmployerUrl(apply)) {
-            job.jobLink = apply;
-            linked = true;
-          }
-        } catch (err) {
-          if (err?.stopped) throw err;
-        }
-        done += 1;
-        report(
-          `Dice ${done}/${pending.length} ${linked ? "company site" : "Dice link"} — ${job.company} — ${job.title}`,
         );
       }),
     );
@@ -777,12 +679,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (needHiringCafe.length > 0) {
       report(`Opening employer links for ${needHiringCafe.length} Hiring Cafe job(s)…`);
       await resolveHiringCafeJobs(needHiringCafe);
-    }
-    checkStop();
-    const needDice = keepers.filter((job) => job.source === "dice" && isDiceHost(job.jobLink));
-    if (needDice.length > 0) {
-      report(`Checking company-site apply for ${needDice.length} Dice job(s)…`);
-      await resolveDiceJobs(needDice);
     }
     checkStop();
     report(`Uploading ${keepers.length} job(s)…`);

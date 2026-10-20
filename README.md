@@ -30,7 +30,7 @@ Leave that window open. It prints `http://127.0.0.1:3921` and a token (saved in 
 3. On the job site, sign in if asked, set the filters, and open page 1 of the results.
 4. Click the extension, pick the profile, and choose **Collect**. The server address and token are under **Connection**.
 
-Duplicate checks run before any job page is opened. Built In, Hiring Cafe, and Dice employer links are then loaded only for jobs that passed those checks. A Dice job with no company-site button keeps its Dice link. Rows that are still only a Built In link are not uploaded. New rows go to the sheet tab with that profile’s name.
+Duplicate checks run before any job page is opened. Built In and Hiring Cafe employer links are then loaded only for jobs that passed those checks. Dice keeps the Dice job link. Rows that are still only a Built In link are not uploaded. New rows go to the sheet tab with that profile’s name.
 
 ## Profiles
 
