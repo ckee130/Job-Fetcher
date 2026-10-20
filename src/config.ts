@@ -31,15 +31,11 @@ export const config = {
   googleServiceAccountFile: (process.env.GOOGLE_SERVICE_ACCOUNT_FILE || "").trim(),
   /** CV folder; `{sheet}` → active profile name. Skip job if a filename contains the company. */
   cvDir: (process.env.CV_DIR || "").trim(),
-  /** Shared JobRight.ai account (Clinton/Nathan/Blake/Eric/Jay). */
+  /** Shared JobRight.ai account (profiles without jobrightEnvPrefix). */
   jobrightEmail: (process.env.JOBRIGHT_EMAIL || "").trim(),
   jobrightPassword: (process.env.JOBRIGHT_PASSWORD || "").trim(),
   /** Optional seed session; otherwise login + persist under data/. */
   jobrightSessionId: (process.env.JOBRIGHT_SESSION_ID || "").trim(),
-  /** Daniel profile — separate JobRight account. */
-  danielJobrightEmail: (process.env.DANIEL_JOBRIGHT_EMAIL || "").trim(),
-  danielJobrightPassword: (process.env.DANIEL_JOBRIGHT_PASSWORD || "").trim(),
-  danielJobrightSessionId: (process.env.DANIEL_JOBRIGHT_SESSION_ID || "").trim(),
   /** Cap JobRight recommendation jobs (0 = default 100). */
   jobrightMaxJobs: intEnv("JOBRIGHT_MAX_JOBS", 100),
   /** Delay between JobRight recommendation pages (rate limits are strict). */

@@ -66,7 +66,7 @@ export type Profile = {
   skipSheetCompanyCheck?: boolean;
   /**
    * JobRight env prefix. Default: JOBRIGHT_EMAIL/PASSWORD/SESSION_ID.
-   * Daniel uses DANIEL_JOBRIGHT_* (separate account + session file).
+   * Daniel uses DANIEL_JOBRIGHT_*; Luke uses LUKE_JOBRIGHT_*.
    */
   jobrightEnvPrefix?: string;
 };
@@ -222,6 +222,15 @@ export const PROFILES = {
     hiringCafe: DANIEL_HIRING_CAFE,
     builtinSearches: NATHAN_BUILTIN_SEARCHES,
     jobrightEnvPrefix: "DANIEL_JOBRIGHT",
+  },
+  Luke: {
+    name: "Luke",
+    cvRootDir: usResumeDir("Luke"),
+    cvMatchMode: "subdir",
+    skipSheetCompanyCheck: true,
+    hiringCafe: CLINTON_HIRING_CAFE,
+    builtinSearches: CLINTON_BUILTIN_SEARCHES,
+    jobrightEnvPrefix: "LUKE_JOBRIGHT",
   },
 } as const satisfies Record<string, Profile>;
 

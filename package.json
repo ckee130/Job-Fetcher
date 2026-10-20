@@ -11,6 +11,7 @@
     "fetch:eric": "tsx src/index.ts --profile=Eric",
     "fetch:jay": "tsx src/index.ts --profile=Jay",
     "fetch:daniel": "tsx src/index.ts --profile=Daniel",
+    "fetch:luke": "tsx src/index.ts --profile=Luke",
     "fetch:builtin": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },

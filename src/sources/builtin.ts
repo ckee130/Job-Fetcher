@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Frame, type Page, type Response } from "playwright";
 
 import { config } from "../config.js";
 import { normalizeEmploymentType } from "../employment.js";
@@ -104,6 +104,78 @@ function isBuiltinHost(url: string): boolean {
   } catch {
     return /builtin\.com/i.test(url);
   }
+}
+
+/** Employer sites Built In redirects to (Dayforce, Greenhouse, …). */
+const ATS_HOST =
+  /dayforcehcm\.com|greenhouse\.io|ashbyhq\.com|smartrecruiters\.com|bamboohr\.com|myworkdayjobs\.com|workday\.com|hirebridge\.com|oraclecloud\.com|lever\.co|rippling\.com|icims\.com|adp\.com|zohorecruit\.com|gem\.com|workable\.com|jobvite\.com|ultipro\.com|successfactors\.com|taleo\.net|paylocity\.com|breezy\.hr|recruitee\.com|comeet\.co|csod\.com/i;
+
+function isNoiseHost(hostname: string): boolean {
+  return /(^|\.)(google-analytics|googletagmanager|googleadservices|doubleclick|gstatic|googleapis|facebook|cloudflareinsights|fontawesome|hotjar|segment|sentry)\./i.test(
+    hostname,
+  );
+}
+
+function isExternalHttpUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (isBuiltinHost(url) || isNoiseHost(u.hostname)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function extractAtsUrlFromHtml(html: string): string | null {
+  const meta = html.match(
+    /http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'>\s]+)/i,
+  );
+  if (meta?.[1] && isExternalHttpUrl(meta[1])) return meta[1];
+
+  for (const m of html.matchAll(/https?:\/\/[^\s"'<>\\]+/g)) {
+    const url = m[0]
+      .replace(/\\u0026/g, "&")
+      .replace(/\\\//g, "/")
+      .replace(/&amp;/g, "&");
+    if (ATS_HOST.test(url) && isExternalHttpUrl(url)) return url;
+  }
+  return null;
+}
+
+/** Remember the first navigation that leaves builtin.com (302 Location or document URL). */
+function watchExternalNavigation(page: Page): {
+  read: () => string | null;
+  stop: () => void;
+} {
+  let found: string | null = null;
+  const consider = (raw: string | undefined, base?: string) => {
+    if (found || !raw) return;
+    try {
+      const abs = new URL(raw, base || "https://builtin.com").href;
+      if (isExternalHttpUrl(abs)) found = abs;
+    } catch {
+      // ignore malformed URLs
+    }
+  };
+  const onResponse = (res: Response) => {
+    const req = res.request();
+    if (!req.isNavigationRequest()) return;
+    consider(res.headers()["location"], res.url());
+    consider(res.url());
+  };
+  const onFrame = (frame: Frame) => {
+    if (frame === page.mainFrame()) consider(frame.url());
+  };
+  page.on("response", onResponse);
+  page.on("framenavigated", onFrame);
+  return {
+    read: () => found,
+    stop: () => {
+      page.off("response", onResponse);
+      page.off("framenavigated", onFrame);
+    },
+  };
 }
 
 /** Schema.org JobPosting employmentType from detail-page LD+JSON (e.g. FULL_TIME). */
@@ -329,20 +401,77 @@ async function waitForBuiltinLogin(page: Page, listingUrl: string): Promise<bool
   return false;
 }
 
-async function followApplyRedirect(page: Page, redirectUrl: string): Promise<string> {
-  const context = page.context();
-  const popupPromise = context.waitForEvent("page", { timeout: 6_000 }).catch(() => null);
-  await page.goto(redirectUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  const popup = await popupPromise;
-  if (popup) {
-    await popup.waitForLoadState("domcontentloaded").catch(() => undefined);
-    await sleep(600);
-    const url = popup.url();
-    await popup.close().catch(() => undefined);
-    return url;
+/**
+ * Built In's Apply button is `target=_blank` to `?handler=ApplyRedirect`.
+ * Logged-in, that navigation 302s to the employer (Dayforce, Greenhouse, …).
+ * A bare goto often stays on the handler URL — Dayforce is a later hop or a new tab.
+ */
+async function followApplyRedirect(
+  page: Page,
+  redirectUrl: string,
+  referer: string,
+): Promise<string> {
+  const watcher = watchExternalNavigation(page);
+  const opened: {
+    popup: Page | null;
+    watcher: ReturnType<typeof watchExternalNavigation> | null;
+  } = { popup: null, watcher: null };
+  const onPopup = (next: Page) => {
+    if (opened.popup) return;
+    opened.popup = next;
+    opened.watcher = watchExternalNavigation(next);
+  };
+  page.on("popup", onPopup);
+
+  const currentExternal = (): string | null =>
+    watcher.read() ||
+    opened.watcher?.read() ||
+    [opened.popup?.url(), page.url()].find((u) => u && isExternalHttpUrl(u)) ||
+    null;
+
+  const poll = async (ms: number): Promise<string | null> => {
+    const deadline = Date.now() + ms;
+    while (Date.now() < deadline) {
+      const hit = currentExternal();
+      if (hit) return hit;
+      const urls = [opened.popup?.url(), page.url()].filter((u): u is string => Boolean(u));
+      if (urls.some((u) => /applyRequired=true/i.test(u))) {
+        return urls.find((u) => /applyRequired=true/i.test(u)) ?? null;
+      }
+      await sleep(200);
+    }
+    return currentExternal();
+  };
+
+  try {
+    await page.goto(redirectUrl, {
+      referer,
+      waitUntil: "domcontentloaded",
+      timeout: 120_000,
+    });
+
+    const immediate = await poll(1_500);
+    if (immediate && (isExternalHttpUrl(immediate) || /applyRequired=true/i.test(immediate))) {
+      return immediate;
+    }
+
+    // Same action as the Apply button: open the handler in a new tab.
+    const link = page.locator('a[href*="handler=ApplyRedirect"]').first();
+    if (await link.isVisible().catch(() => false)) {
+      await link.click({ timeout: 5_000 }).catch(() => undefined);
+    }
+
+    const followed = await poll(10_000);
+    if (followed) return followed;
+
+    const html = await (opened.popup ?? page).content().catch(() => "");
+    return extractAtsUrlFromHtml(html) || currentExternal() || page.url();
+  } finally {
+    page.off("popup", onPopup);
+    watcher.stop();
+    opened.watcher?.stop();
+    if (opened.popup) await opened.popup.close().catch(() => undefined);
   }
-  await sleep(800);
-  return page.url();
 }
 
 async function resolveEmployerApplyUrl(
@@ -368,7 +497,7 @@ async function resolveEmployerApplyUrl(
 
   if (!isBuiltinHost(redirect)) return redirect;
 
-  let finalUrl = await followApplyRedirect(page, redirect);
+  let finalUrl = await followApplyRedirect(page, redirect, listingUrl);
 
   if (/applyRequired=true/i.test(finalUrl)) {
     progress(
@@ -402,7 +531,7 @@ async function ensureBuiltinLoggedIn(
 
     const redirect = extractApplyRedirectUrl(await page.content());
     if (redirect && isBuiltinHost(redirect)) {
-      const landed = await followApplyRedirect(page, redirect);
+      const landed = await followApplyRedirect(page, redirect, sampleListingUrl);
       if (/applyRequired=true/i.test(landed)) {
         const ok = await waitForBuiltinLogin(page, sampleListingUrl);
         if (!ok) return false;

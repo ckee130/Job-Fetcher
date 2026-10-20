@@ -53,15 +53,19 @@ type JobrightAuth = {
 
 function resolveJobrightAuth(): JobrightAuth {
   const prefix = getActiveProfile().jobrightEnvPrefix;
-  if (prefix === "DANIEL_JOBRIGHT") {
+  if (prefix) {
+    const emailEnv = `${prefix}_EMAIL`;
+    const passwordEnv = `${prefix}_PASSWORD`;
+    const sessionEnv = `${prefix}_SESSION_ID`;
+    const slug = prefix.replace(/_JOBRIGHT$/i, "").toLowerCase();
     return {
-      email: config.danielJobrightEmail,
-      password: config.danielJobrightPassword,
-      sessionId: config.danielJobrightSessionId,
-      emailEnv: "DANIEL_JOBRIGHT_EMAIL",
-      passwordEnv: "DANIEL_JOBRIGHT_PASSWORD",
-      sessionEnv: "DANIEL_JOBRIGHT_SESSION_ID",
-      sessionFile: "jobright-session-daniel.json",
+      email: (process.env[emailEnv] || "").trim(),
+      password: (process.env[passwordEnv] || "").trim(),
+      sessionId: (process.env[sessionEnv] || "").trim(),
+      emailEnv,
+      passwordEnv,
+      sessionEnv,
+      sessionFile: `jobright-session-${slug}.json`,
     };
   }
   return {

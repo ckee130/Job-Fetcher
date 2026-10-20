@@ -2,7 +2,7 @@
 
 Manual CLI that pulls **new** remote jobs from **Hiring Cafe**, **Built In**, and **JobRight.ai** per **profile**, appends them to Google Sheets, and sends an optional desktop notification.
 
-Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**. JobRight uses a shared account for most profiles; Daniel has its own (`DANIEL_JOBRIGHT_*`).
+Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**, **Luke**. JobRight uses a shared account for most profiles; Daniel (`DANIEL_JOBRIGHT_*`) and Luke (`LUKE_JOBRIGHT_*`) have their own.
 
 ## Setup
 
@@ -19,7 +19,7 @@ One spreadsheet; each profile writes to a **tab named after the profile**. Creat
 
 ### JobRight
 
-Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most profiles. **Daniel** uses `DANIEL_JOBRIGHT_EMAIL` / `DANIEL_JOBRIGHT_PASSWORD` (separate account + session file). Configure filters in each JobRight UI (Confirm) — recommendations follow that account.
+Set `JOBRIGHT_EMAIL` + `JOBRIGHT_PASSWORD` (or `JOBRIGHT_SESSION_ID`) for most profiles. **Daniel** uses `DANIEL_JOBRIGHT_EMAIL` / `DANIEL_JOBRIGHT_PASSWORD`. **Luke** uses `LUKE_JOBRIGHT_EMAIL` / `LUKE_JOBRIGHT_PASSWORD`. Each account has its own session file. Configure filters in each JobRight UI (Confirm) — recommendations follow that account.
 
 ### Hiring Cafe
 
@@ -34,6 +34,7 @@ npm run fetch:blake
 npm run fetch:eric
 npm run fetch:jay
 npm run fetch:daniel
+npm run fetch:luke
 ```
 
 Or pass `--profile` / set `PROFILE` in `.env`:
@@ -55,13 +56,14 @@ npm run fetch:clinton -- --src=bi
 | Profile | Local path | Match |
 |---------|------------|--------|
 | **Clinton / Nathan / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
-| **Eric / Jay / Daniel** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
+| **Eric / Jay / Daniel / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 
 | Profile | Search notes |
 |---------|----------------|
 | **Clinton** | US remote; YoE 5–10; Built In senior/expert-leader |
 | **Nathan** | US remote; YoE 4–8; Built In senior |
 | **Blake** | Same as Clinton; skip same company+role already in Clinton/Nathan CV filenames (peer sheets not checked) |
+| **Luke** | Same searches as Clinton; local-only dedupe (company subfolder, sheet not checked) |
 | **Eric / Jay / Daniel** | Same as Nathan; local-only dedupe |
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
@@ -71,7 +73,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 1. Fetch Hiring Cafe → Built In → JobRight (Hiring Cafe wins within-run company/URL dedupe)
 2. Within-run dedupe (same company / apply URL across sources)
 3. Title filter (manager, director, designer, VP, owner)
-4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel)
+4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel/Luke)
 5. Resolve Built In employer apply URLs for jobs that will upload
 6. Upload to profile tab with date
 
@@ -82,5 +84,6 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 - `CV_DIR` — fallback `D:\Remote\CV\{sheet}` (profiles also set explicit roots in code)
 - `JOBRIGHT_EMAIL` / `JOBRIGHT_PASSWORD` / `JOBRIGHT_SESSION_ID`
 - `DANIEL_JOBRIGHT_EMAIL` / `DANIEL_JOBRIGHT_PASSWORD` / `DANIEL_JOBRIGHT_SESSION_ID` (Daniel only)
+- `LUKE_JOBRIGHT_EMAIL` / `LUKE_JOBRIGHT_PASSWORD` / `LUKE_JOBRIGHT_SESSION_ID` (Luke only)
 - `BUILTIN_LOGIN_WAIT_MS`, `BUILTIN_LOGIN_ATTEMPTS`, `BUILTIN_APPLY_CONCURRENCY`
 - `PROXY_URL`, `MAX_PAGES`, `PAGE_DELAY_MS`, `NOTIFY`
