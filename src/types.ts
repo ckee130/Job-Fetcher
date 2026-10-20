@@ -1,4 +1,4 @@
-export type JobSource = "hiringcafe" | "builtin" | "jobright";
+export type JobSource = "hiringcafe" | "builtin" | "jobright" | "dice" | "indeed";
 
 export type JobRecord = {
   company: string;
@@ -12,40 +12,4 @@ export type JobRecord = {
   externalId?: string;
   /** Full-time, Contract, Part-time, … when the source provides it. */
   employmentType?: string;
-};
-
-export type FetchResult = {
-  source: JobSource;
-  jobs: JobRecord[];
-  pagesFetched: number;
-  error?: string;
-};
-
-export type RunSummary = {
-  startedAt: string;
-  finishedAt: string;
-  fetchedTotal: number;
-  newJobs: JobRecord[];
-  skippedDuplicates: number;
-  skippedByCv?: number;
-  skippedByPeerCv?: number;
-  skippedByPeerRole?: number;
-  skippedByTitle?: number;
-  skippedWithinRun?: number;
-  bySource: Record<
-    JobSource,
-    { fetched: number; newCount: number; pagesFetched: number; error?: string }
-  >;
-  outputPath: string;
-  sheets?: {
-    appended: number;
-    skippedDuplicates?: number;
-    skippedByCv?: number;
-    skippedByPeerCv?: number;
-    skippedByPeerRole?: number;
-    uploadedJobs?: JobRecord[];
-    skipped: boolean;
-    spreadsheetId?: string;
-    error?: string;
-  };
 };

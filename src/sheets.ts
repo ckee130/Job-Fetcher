@@ -11,18 +11,6 @@ import type { JobRecord } from "./types.js";
 
 const HEADER = ["Company", "Role", "Job Link", "Source", "Date", "Type"] as const;
 
-export type SheetsAppendResult = {
-  appended: number;
-  skippedDuplicates: number;
-  skippedByCv: number;
-  skippedByPeerCv: number;
-  skippedByPeerRole: number;
-  uploadedJobs: JobRecord[];
-  skipped: boolean;
-  spreadsheetId?: string;
-  error?: string;
-};
-
 export function normalizeCompany(name: string): string {
   return normalizeText(name);
 }
@@ -177,7 +165,6 @@ export type UploadFilterResult = {
   toUpload: JobRecord[];
   skippedDuplicates: number;
   skippedByCv: number;
-  skippedByPeerCv: number;
   skippedByPeerRole: number;
   skipped: boolean;
   spreadsheetId?: string;
@@ -194,7 +181,6 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       toUpload: [],
       skippedDuplicates: 0,
       skippedByCv: 0,
-      skippedByPeerCv: 0,
       skippedByPeerRole: 0,
       skipped: true,
     };
@@ -210,26 +196,17 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
-    let afterCv = jobs;
-    let skippedByCv = 0;
-    if (profile.skipCvDirCheck) {
-      progress("skipping local CV directory check (sheet-only dedupe)");
-    } else {
-      progress("checking CV directory…");
-      const cvFilter = filterJobsByCvDir(jobs);
-      afterCv = cvFilter.kept;
-      skippedByCv = cvFilter.skipped;
-      if (cvFilter.cvDir && skippedByCv > 0) {
-        const how =
-          profile.cvMatchMode === "subdir"
-            ? "company folder exists"
-            : "CV file exists for company";
-        progress(`skipped ${skippedByCv} job(s) — ${how}`);
-      }
+    progress("checking CV directory…");
+    const cvFilter = filterJobsByCvDir(jobs);
+    const afterCv = cvFilter.kept;
+    const skippedByCv = cvFilter.skipped;
+    if (cvFilter.cvDir && skippedByCv > 0) {
+      const how =
+        profile.cvMatchMode === "subdir" ? "company folder exists" : "CV file exists for company";
+      progress(`skipped ${skippedByCv} job(s) — ${how}`);
     }
 
     let afterPeerRole = afterCv;
-    let skippedByPeerCv = 0;
     let skippedByPeerRole = 0;
     const peerNames = profile.skipSameRoleOnPeerCvs ?? [];
     if (peerNames.length > 0) {
@@ -272,7 +249,6 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       toUpload,
       skippedDuplicates,
       skippedByCv,
-      skippedByPeerCv,
       skippedByPeerRole,
       skipped: false,
       spreadsheetId,
@@ -282,7 +258,6 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       toUpload: [],
       skippedDuplicates: 0,
       skippedByCv: 0,
-      skippedByPeerCv: 0,
       skippedByPeerRole: 0,
       skipped: false,
       spreadsheetId,
@@ -333,45 +308,4 @@ export async function appendRowsToSheet(
       error: err instanceof Error ? err.message : String(err),
     };
   }
-}
-
-/** Filter + append in one call (legacy). Prefer filterJobsForUpload → enrich URLs → appendRowsToSheet. */
-export async function appendJobsToSheet(jobs: JobRecord[]): Promise<SheetsAppendResult> {
-  const filtered = await filterJobsForUpload(jobs);
-  if (filtered.skipped) {
-    return {
-      appended: 0,
-      skippedDuplicates: 0,
-      skippedByCv: 0,
-      skippedByPeerCv: 0,
-      skippedByPeerRole: 0,
-      uploadedJobs: [],
-      skipped: true,
-    };
-  }
-  if (filtered.error) {
-    return {
-      appended: 0,
-      skippedDuplicates: filtered.skippedDuplicates,
-      skippedByCv: filtered.skippedByCv,
-      skippedByPeerCv: filtered.skippedByPeerCv,
-      skippedByPeerRole: filtered.skippedByPeerRole,
-      uploadedJobs: [],
-      skipped: false,
-      spreadsheetId: filtered.spreadsheetId,
-      error: filtered.error,
-    };
-  }
-  const appended = await appendRowsToSheet(filtered.toUpload);
-  return {
-    appended: appended.appended,
-    skippedDuplicates: filtered.skippedDuplicates,
-    skippedByCv: filtered.skippedByCv,
-    skippedByPeerCv: filtered.skippedByPeerCv,
-    skippedByPeerRole: filtered.skippedByPeerRole,
-    uploadedJobs: appended.uploadedJobs,
-    skipped: false,
-    spreadsheetId: filtered.spreadsheetId,
-    error: appended.error,
-  };
 }

@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Job Fetcher",
+  "version": "1.0.0",
+  "description": "Send the open job search to Job Fetcher for duplicate checks and sheet upload.",
+  "permissions": ["storage", "tabs", "scripting", "cookies"],
+  "host_permissions": [
+    "https://hiringcafe.com/*",
+    "https://*.hiringcafe.com/*",
+    "https://builtin.com/*",
+    "https://*.builtin.com/*",
+    "https://jobright.ai/*",
+    "https://*.jobright.ai/*",
+    "https://swan-api.jobright.ai/*",
+    "https://dice.com/*",
+    "https://*.dice.com/*",
+    "https://indeed.com/*",
+    "https://*.indeed.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_title": "Job Fetcher",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hiringcafe.com/*",
+        "https://*.hiringcafe.com/*",
+        "https://builtin.com/*",
+        "https://*.builtin.com/*",
+        "https://dice.com/*",
+        "https://*.dice.com/*",
+        "https://indeed.com/*",
+        "https://*.indeed.com/*"
+      ],
+      "js": ["collect.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

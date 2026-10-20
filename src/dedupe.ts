@@ -1,7 +1,7 @@
 import { normalizeCompany } from "./sheets.js";
 import type { JobRecord } from "./types.js";
 
-const AGGREGATOR_HOST = /(?:^|\.)(?:hiringcafe\.com|builtin\.com|jobright\.ai)$/i;
+const AGGREGATOR_HOST = /(?:^|\.)(?:hiringcafe\.com|builtin\.com|jobright\.ai|dice\.com|indeed\.com)$/i;
 
 const TRACKING_PARAMS = [
   "utm_source",

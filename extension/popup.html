@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Job Fetcher</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="mark" aria-hidden="true">JF</div>
+      <div class="title">
+        <h1>Job Fetcher</h1>
+        <p id="status">Ready</p>
+      </div>
+    </header>
+
+    <label>
+      Profile
+      <select id="profile">
+        <option>Clinton</option>
+        <option>Nathan</option>
+        <option>Blake</option>
+        <option>Eric</option>
+        <option>Jay</option>
+        <option>Daniel</option>
+        <option>Luke</option>
+      </select>
+    </label>
+
+    <div class="actions">
+      <button id="collect" type="button">Collect</button>
+      <button id="stop" type="button" disabled>Stop</button>
+    </div>
+
+    <section class="activity" aria-label="Activity">
+      <ol id="log" class="log">
+        <li>Open a results page, then collect.</li>
+      </ol>
+    </section>
+
+    <details id="connection">
+      <summary>Connection</summary>
+      <label>
+        Server
+        <input id="server" type="url" spellcheck="false" value="http://127.0.0.1:3921" />
+      </label>
+      <label>
+        Token
+        <input id="token" type="password" spellcheck="false" autocomplete="off" />
+      </label>
+    </details>
+  </body>
+  <script src="popup.js"></script>
+</html>

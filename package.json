@@ -4,22 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fetch": "tsx src/index.ts",
-    "fetch:clinton": "tsx src/index.ts --profile=Clinton",
-    "fetch:nathan": "tsx src/index.ts --profile=Nathan",
-    "fetch:blake": "tsx src/index.ts --profile=Blake",
-    "fetch:eric": "tsx src/index.ts --profile=Eric",
-    "fetch:jay": "tsx src/index.ts --profile=Jay",
-    "fetch:daniel": "tsx src/index.ts --profile=Daniel",
-    "fetch:luke": "tsx src/index.ts --profile=Luke",
-    "fetch:builtin": "tsx src/index.ts",
+    "extension": "tsx src/extensionServer.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "googleapis": "^176.0.0",
-    "playwright": "^1.64.0",
-    "undici": "^7.8.0"
+    "googleapis": "^176.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
