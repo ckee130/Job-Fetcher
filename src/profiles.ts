@@ -4,9 +4,14 @@ export type Profile = {
   /**
    * Peer CV folders for company+role local dedupe (Blake → Clinton/Nathan).
    * Skip when a peer filename already has the same company + role.
-   * Same company with a different role is still uploaded. Peer sheets are not checked.
+   * Same company with a different role is still uploaded.
    */
   skipSameRoleOnPeerCvs?: readonly string[];
+  /**
+   * Other profile sheet tabs. After the usual checks, skip when the same
+   * company and role is already on any one of these sheets. Sheet rows only.
+   */
+  peerSheetNames?: readonly string[];
   /** Absolute resume root for this profile (overrides CV_DIR template). */
   cvRootDir?: string;
   /**
@@ -32,11 +37,13 @@ export const PROFILES = {
     name: "Clinton",
     cvRootDir: remoteCvDir("Clinton"),
     cvMatchMode: "filename",
+    peerSheetNames: ["Nathan", "Blake"],
   },
   Nathan: {
     name: "Nathan",
     cvRootDir: remoteCvDir("Nathan"),
     cvMatchMode: "filename",
+    peerSheetNames: ["Clinton", "Blake"],
   },
   Blake: {
     name: "Blake",
@@ -44,6 +51,7 @@ export const PROFILES = {
     cvMatchMode: "filename",
     /** Skip same company+role already in Clinton/Nathan CV files. */
     skipSameRoleOnPeerCvs: ["Clinton", "Nathan"],
+    peerSheetNames: ["Clinton", "Nathan"],
   },
   Eric: {
     name: "Eric",

@@ -161,11 +161,78 @@ export function filterJobsBySheetCompanies(
   return { toUpload, skippedDuplicates };
 }
 
+function companyRoleKey(company: string, role: string): string {
+  const companyKey = normalizeCompany(company);
+  const roleKey = normalizeText(role);
+  if (!companyKey || !roleKey) return "";
+  return `${companyKey}\n${roleKey}`;
+}
+
+/** Company + role already on a sheet (normalized). Skips the header row. */
+async function loadExistingCompanyRoles(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string,
+): Promise<Set<string>> {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A:B`,
+  });
+  const rows = res.data.values ?? [];
+  const keys = new Set<string>();
+  for (let i = 0; i < rows.length; i += 1) {
+    const company = String(rows[i]?.[0] ?? "").trim();
+    const role = String(rows[i]?.[1] ?? "").trim();
+    if (i === 0 && company.toLowerCase() === "company") continue;
+    const key = companyRoleKey(company, role);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+/**
+ * Skip when the same company and role is already on a peer sheet.
+ * Same company with a different role is kept.
+ */
+export function filterJobsByPeerSheetRoles(
+  jobs: JobRecord[],
+  existingCompanyRoles: Set<string>,
+): { toUpload: JobRecord[]; skipped: number } {
+  const toUpload: JobRecord[] = [];
+  let skipped = 0;
+
+  for (const job of jobs) {
+    const key = companyRoleKey(job.company, job.title);
+    if (key && existingCompanyRoles.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    toUpload.push(job);
+  }
+
+  return { toUpload, skipped };
+}
+
+async function listSheetTitles(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+): Promise<Set<string>> {
+  const meta = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+  const titles = (meta.data.sheets ?? [])
+    .map((s: sheets_v4.Schema$Sheet) => s.properties?.title)
+    .filter((title: string | null | undefined): title is string => Boolean(title));
+  return new Set(titles);
+}
+
 export type UploadFilterResult = {
   toUpload: JobRecord[];
   skippedDuplicates: number;
   skippedByCv: number;
   skippedByPeerRole: number;
+  skippedByPeerSheet: number;
   skipped: boolean;
   spreadsheetId?: string;
   error?: string;
@@ -182,6 +249,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       skippedDuplicates: 0,
       skippedByCv: 0,
       skippedByPeerRole: 0,
+      skippedByPeerSheet: 0,
       skipped: true,
     };
   }
@@ -245,11 +313,39 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       );
     }
 
+    let skippedByPeerSheet = 0;
+    const peerSheets = profile.peerSheetNames ?? [];
+    if (peerSheets.length > 0 && toUpload.length > 0) {
+      progress(
+        `checking ${peerSheets.join(" and ")} sheets for the same company and role…`,
+      );
+      const titles = await listSheetTitles(sheets, spreadsheetId);
+      const peerKeys = new Set<string>();
+      for (const name of peerSheets) {
+        if (!titles.has(name)) {
+          progress(`${name} sheet is missing — nothing to match`);
+          continue;
+        }
+        const keys = await loadExistingCompanyRoles(sheets, spreadsheetId, name);
+        progress(`${name} sheet has ${keys.size} company and role row(s)`);
+        for (const key of keys) peerKeys.add(key);
+      }
+      const peerSheetFilter = filterJobsByPeerSheetRoles(toUpload, peerKeys);
+      toUpload = peerSheetFilter.toUpload;
+      skippedByPeerSheet = peerSheetFilter.skipped;
+      if (skippedByPeerSheet > 0) {
+        progress(
+          `skipped ${skippedByPeerSheet} job(s) — same company and role already on ${peerSheets.join(" or ")} sheet`,
+        );
+      }
+    }
+
     return {
       toUpload,
       skippedDuplicates,
       skippedByCv,
       skippedByPeerRole,
+      skippedByPeerSheet,
       skipped: false,
       spreadsheetId,
     };
@@ -259,6 +355,7 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
       skippedDuplicates: 0,
       skippedByCv: 0,
       skippedByPeerRole: 0,
+      skippedByPeerSheet: 0,
       skipped: false,
       spreadsheetId,
       error: err instanceof Error ? err.message : String(err),

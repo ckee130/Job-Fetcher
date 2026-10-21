@@ -39,7 +39,7 @@ Duplicate checks run before any job page is opened. Built In and Hiring Cafe emp
 | **Clinton / Nathan / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
 | **Eric / Jay / Daniel / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 
-Blake also skips a job when the same company and role already appear in a Clinton or Nathan CV filename. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only.
+Blake also skips a job when the same company and role already appear in a Clinton or Nathan CV filename. After those checks, Clinton, Nathan, and Blake each skip a job when the same company and role is already on either of the other two sheets. That check reads the sheets only. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only.
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
 
@@ -48,7 +48,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 1. Read the open search, including later pages
 2. Within-run dedupe (same company / apply URL)
 3. Title filter (manager, director, designer, researcher, leader, VP, owner, security)
-4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel/Luke)
+4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel/Luke) → Clinton, Nathan, and Blake peer-sheet company+role check
 5. Resolve Built In employer apply URLs for jobs that will upload
 6. Upload to the profile tab with the date
 

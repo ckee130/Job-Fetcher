@@ -85,6 +85,7 @@ async function prepare(profileName: string, jobs: JobRecord[]) {
     skippedByTitle,
     skippedByCv: uploadFilter.skippedByCv,
     skippedByPeerRole: uploadFilter.skippedByPeerRole,
+    skippedByPeerSheet: uploadFilter.skippedByPeerSheet,
     skippedDuplicates: uploadFilter.skippedDuplicates,
     error:
       uploadFilter.error ??
