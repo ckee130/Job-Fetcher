@@ -47,7 +47,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 
 1. Read the open search, including later pages
 2. Within-run dedupe (same company / apply URL)
-3. Title filter (manager, director, designer, VP, owner)
+3. Title filter (manager, director, designer, researcher, leader, VP, owner, security)
 4. Local company check (file or subfolder) → Blake peer CV company+role check → sheet company check (skipped for Eric/Jay/Daniel/Luke)
 5. Resolve Built In employer apply URLs for jobs that will upload
 6. Upload to the profile tab with the date

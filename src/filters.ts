@@ -5,11 +5,14 @@ const TITLE_EXCLUDE = [
   /\bmanagers?\b/i,
   /\bdirectors?\b/i,
   /\bdesigners?\b/i,
+  /\bresearchers?\b/i,
+  /\bleaders?\b/i,
   /\bvp\b/i,
   /\bchief\b/i,
   /\bhead\b/i,
   /\badministrators?\b/i,
   /\bowners?\b/i,
+  /\bsecurity\b/i,
 ] as const;
 
 export function shouldSkipJob(job: Pick<JobRecord, "title">): boolean {
