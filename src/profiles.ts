@@ -8,8 +8,8 @@ export type Profile = {
    */
   skipSameRoleOnPeerCvs?: readonly string[];
   /**
-   * Other profile sheet tabs. After the usual checks, skip when the same
-   * company and role is already on any one of these sheets. Sheet rows only.
+   * Other profile sheet tabs. Skip when the same job link is already on any
+   * one of these sheets. Compares the Job Link column only.
    */
   peerSheetNames?: readonly string[];
   /** Absolute resume root for this profile (overrides CV_DIR template). */

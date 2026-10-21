@@ -85,7 +85,6 @@ async function prepare(profileName: string, jobs: JobRecord[]) {
     skippedByTitle,
     skippedByCv: uploadFilter.skippedByCv,
     skippedByPeerRole: uploadFilter.skippedByPeerRole,
-    skippedByPeerSheet: uploadFilter.skippedByPeerSheet,
     skippedDuplicates: uploadFilter.skippedDuplicates,
     error:
       uploadFilter.error ??
@@ -106,12 +105,15 @@ async function upload(profileName: string, jobs: JobRecord[]) {
   }
 
   const appended =
-    uploadReady.length > 0 ? await appendRowsToSheet(uploadReady) : { appended: 0, error: undefined };
+    uploadReady.length > 0
+      ? await appendRowsToSheet(uploadReady)
+      : { appended: 0, skippedByPeerSheet: 0, error: undefined };
 
   return {
     ok: !appended.error,
     profile: profile.name,
     skippedBuiltinListing,
+    skippedByPeerSheet: appended.skippedByPeerSheet ?? 0,
     appended: appended.appended,
     error: appended.error,
   };

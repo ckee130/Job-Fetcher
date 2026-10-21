@@ -665,7 +665,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     report(`Local company skipped ${prepared.skippedByCv || 0}`);
     report(`Peer company+role skipped ${prepared.skippedByPeerRole || 0}`);
     report(`Already on sheet skipped ${prepared.skippedDuplicates || 0}`);
-    report(`Same company and role on Clinton, Nathan, or Blake skipped ${prepared.skippedByPeerSheet || 0}`);
     report(`${keepers.length} job(s) left after checks`);
     checkStop();
     const needBuiltin = keepers.filter((job) => job.source === "builtin" && isBuiltinHost(job.jobLink));
@@ -691,6 +690,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (uploaded.skippedBuiltinListing) {
       report(`Built In without employer URL skipped ${uploaded.skippedBuiltinListing}`);
     }
+    report(`Same job link on Clinton, Nathan, or Blake skipped ${uploaded.skippedByPeerSheet || 0}`);
     report(`Uploaded ${uploaded.appended || 0} to ${message.profile}.`);
     sendResponse({
       ...prepared,
