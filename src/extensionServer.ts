@@ -44,6 +44,14 @@ function isBuiltinHost(url: string): boolean {
   }
 }
 
+function isGreenhouseJobLink(url: string): boolean {
+  try {
+    return /(?:^|\.)greenhouse\.io$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 function asJob(raw: unknown): JobRecord | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -96,12 +104,23 @@ async function upload(profileName: string, jobs: JobRecord[]) {
   const profile = setActiveProfile(profileName);
   progressPhase(`Extension upload (${profile.name})`);
 
-  const uploadReady = jobs.filter((job) => !(job.source === "builtin" && isBuiltinHost(job.jobLink)));
+  let uploadReady = jobs.filter((job) => !(job.source === "builtin" && isBuiltinHost(job.jobLink)));
   const skippedBuiltinListing = jobs.length - uploadReady.length;
   if (skippedBuiltinListing > 0) {
     progress(
       `skipped ${skippedBuiltinListing} Built In job(s) without employer apply URL (not uploaded)`,
     );
+  }
+
+  let skippedNonGreenhouse = 0;
+  if (profile.uploadGreenhouseOnly) {
+    const greenhouseJobs = uploadReady.filter((job) => isGreenhouseJobLink(job.jobLink));
+    skippedNonGreenhouse = uploadReady.length - greenhouseJobs.length;
+    uploadReady = greenhouseJobs;
+    if (skippedNonGreenhouse > 0) {
+      progress(`skipped ${skippedNonGreenhouse} job(s) — not a Greenhouse link`);
+    }
+    progress(`Greenhouse jobs to upload: ${uploadReady.length}`);
   }
 
   const appended =
@@ -113,6 +132,7 @@ async function upload(profileName: string, jobs: JobRecord[]) {
     ok: !appended.error,
     profile: profile.name,
     skippedBuiltinListing,
+    skippedNonGreenhouse,
     skippedByPeerSheet: appended.skippedByPeerSheet ?? 0,
     appended: appended.appended,
     error: appended.error,

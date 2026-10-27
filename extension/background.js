@@ -690,7 +690,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (uploaded.skippedBuiltinListing) {
       report(`Built In without employer URL skipped ${uploaded.skippedBuiltinListing}`);
     }
-    report(`Same job link on Clinton, Nathan, or Blake skipped ${uploaded.skippedByPeerSheet || 0}`);
+    if (uploaded.skippedNonGreenhouse) {
+      report(`Not Greenhouse skipped ${uploaded.skippedNonGreenhouse}`);
+    }
+    if (uploaded.skippedByPeerSheet) {
+      report(`Same job link on peer sheet skipped ${uploaded.skippedByPeerSheet}`);
+    }
     report(`Uploaded ${uploaded.appended || 0} to ${message.profile}.`);
     sendResponse({
       ...prepared,

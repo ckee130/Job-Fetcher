@@ -2,7 +2,7 @@ export type Profile = {
   /** Google Sheet tab name and CV subfolder name. */
   name: string;
   /**
-   * Peer CV folders for company+role local dedupe (Blake → Clinton/Nathan).
+   * Peer CV folders for company+role local dedupe.
    * Skip when a peer filename already has the same company + role.
    * Same company with a different role is still uploaded.
    */
@@ -12,6 +12,11 @@ export type Profile = {
    * one of these sheets. Compares the Job Link column only.
    */
   peerSheetNames?: readonly string[];
+  /**
+   * When true, upload only jobs whose job link is on Greenhouse
+   * (after employer links are resolved).
+   */
+  uploadGreenhouseOnly?: boolean;
   /** Absolute resume root for this profile (overrides CV_DIR template). */
   cvRootDir?: string;
   /**
@@ -49,9 +54,8 @@ export const PROFILES = {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
-    /** Skip same company+role already in Clinton/Nathan CV files. */
-    skipSameRoleOnPeerCvs: ["Clinton", "Nathan"],
-    peerSheetNames: ["Clinton", "Nathan"],
+    /** Blake: local CV + Blake sheet company only; upload Greenhouse links only. */
+    uploadGreenhouseOnly: true,
   },
   Eric: {
     name: "Eric",
