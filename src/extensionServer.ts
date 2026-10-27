@@ -44,9 +44,13 @@ function isBuiltinHost(url: string): boolean {
   }
 }
 
-function isGreenhouseJobLink(url: string): boolean {
+function jobLinkHostAllowed(url: string, allowlist: readonly string[]): boolean {
   try {
-    return /(?:^|\.)greenhouse\.io$/i.test(new URL(url).hostname);
+    const host = new URL(url).hostname.toLowerCase();
+    return allowlist.some((suffix) => {
+      const needle = suffix.toLowerCase().replace(/^\./, "");
+      return host === needle || host.endsWith(`.${needle}`);
+    });
   } catch {
     return false;
   }
@@ -112,15 +116,18 @@ async function upload(profileName: string, jobs: JobRecord[]) {
     );
   }
 
-  let skippedNonGreenhouse = 0;
-  if (profile.uploadGreenhouseOnly) {
-    const greenhouseJobs = uploadReady.filter((job) => isGreenhouseJobLink(job.jobLink));
-    skippedNonGreenhouse = uploadReady.length - greenhouseJobs.length;
-    uploadReady = greenhouseJobs;
-    if (skippedNonGreenhouse > 0) {
-      progress(`skipped ${skippedNonGreenhouse} job(s) — not a Greenhouse link`);
+  let skippedByHostAllowlist = 0;
+  const hostAllowlist = profile.uploadHostAllowlist ?? [];
+  if (hostAllowlist.length > 0) {
+    const allowedJobs = uploadReady.filter((job) => jobLinkHostAllowed(job.jobLink, hostAllowlist));
+    skippedByHostAllowlist = uploadReady.length - allowedJobs.length;
+    uploadReady = allowedJobs;
+    if (skippedByHostAllowlist > 0) {
+      progress(
+        `skipped ${skippedByHostAllowlist} job(s) — link is not ${hostAllowlist.join(" or ")}`,
+      );
     }
-    progress(`Greenhouse jobs to upload: ${uploadReady.length}`);
+    progress(`${hostAllowlist.join(" / ")} jobs to upload: ${uploadReady.length}`);
   }
 
   const appended =
@@ -132,7 +139,7 @@ async function upload(profileName: string, jobs: JobRecord[]) {
     ok: !appended.error,
     profile: profile.name,
     skippedBuiltinListing,
-    skippedNonGreenhouse,
+    skippedByHostAllowlist,
     skippedByPeerSheet: appended.skippedByPeerSheet ?? 0,
     appended: appended.appended,
     error: appended.error,

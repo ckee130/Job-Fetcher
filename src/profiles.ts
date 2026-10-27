@@ -13,10 +13,10 @@ export type Profile = {
    */
   peerSheetNames?: readonly string[];
   /**
-   * When true, upload only jobs whose job link is on Greenhouse
-   * (after employer links are resolved).
+   * When set, upload only jobs whose job link hostname matches one of these
+   * (after employer links are resolved). Example: greenhouse.io, ashbyhq.com.
    */
-  uploadGreenhouseOnly?: boolean;
+  uploadHostAllowlist?: readonly string[];
   /** Absolute resume root for this profile (overrides CV_DIR template). */
   cvRootDir?: string;
   /**
@@ -54,8 +54,8 @@ export const PROFILES = {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
-    /** Blake: local CV + Blake sheet company only; upload Greenhouse links only. */
-    uploadGreenhouseOnly: true,
+    /** Blake: local CV + Blake sheet company only; upload Greenhouse and Ashby links only. */
+    uploadHostAllowlist: ["greenhouse.io", "ashbyhq.com"],
   },
   Eric: {
     name: "Eric",
