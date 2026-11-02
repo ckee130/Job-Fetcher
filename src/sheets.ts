@@ -272,14 +272,20 @@ export async function filterJobsForUpload(jobs: JobRecord[]): Promise<UploadFilt
     await ensureSheetExists(sheets, spreadsheetId, sheetName);
     await ensureHeader(sheets, spreadsheetId, sheetName);
 
-    progress("checking CV directory…");
-    const cvFilter = filterJobsByCvDir(jobs);
-    const afterCv = cvFilter.kept;
-    const skippedByCv = cvFilter.skipped;
-    if (cvFilter.cvDir && skippedByCv > 0) {
-      const how =
-        profile.cvMatchMode === "subdir" ? "company folder exists" : "CV file exists for company";
-      progress(`skipped ${skippedByCv} job(s) — ${how}`);
+    let afterCv = jobs;
+    let skippedByCv = 0;
+    if (profile.skipCvCompanyCheck) {
+      progress("skipping CV directory check (sheet-only dedupe)");
+    } else {
+      progress("checking CV directory…");
+      const cvFilter = filterJobsByCvDir(jobs);
+      afterCv = cvFilter.kept;
+      skippedByCv = cvFilter.skipped;
+      if (cvFilter.cvDir && skippedByCv > 0) {
+        const how =
+          profile.cvMatchMode === "subdir" ? "company folder exists" : "CV file exists for company";
+        progress(`skipped ${skippedByCv} job(s) — ${how}`);
+      }
     }
 
     let afterPeerRole = afterCv;

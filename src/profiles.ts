@@ -22,11 +22,13 @@ export type Profile = {
   /**
    * How local company presence is detected:
    * - filename (default): any file name containing the company
-   * - subdir: a child folder named after the company (Eric/Jay/Daniel/Luke)
+   * - subdir: a child folder named after the company (Eric/Jay/Luke)
    */
   cvMatchMode?: "filename" | "subdir";
   /** When true, skip Google Sheet company dedupe (local check only). */
   skipSheetCompanyCheck?: boolean;
+  /** When true, skip local CV/folder company dedupe (sheet check only). */
+  skipCvCompanyCheck?: boolean;
 };
 
 function remoteCvDir(profileName: string): string {
@@ -82,15 +84,19 @@ export const PROFILES = {
   },
   Daniel: {
     name: "Daniel",
-    cvRootDir: usResumeDir("Daniel"),
-    cvMatchMode: "subdir",
-    skipSheetCompanyCheck: true,
+    /** Sheet company dedupe only — no local CV/folder check. */
+    skipCvCompanyCheck: true,
   },
   Luke: {
     name: "Luke",
     cvRootDir: usResumeDir("Luke"),
     cvMatchMode: "subdir",
     skipSheetCompanyCheck: true,
+  },
+  Stout: {
+    name: "Stout",
+    /** Sheet company dedupe only — no local CV/folder check. */
+    skipCvCompanyCheck: true,
   },
 } as const satisfies Record<string, Profile>;
 

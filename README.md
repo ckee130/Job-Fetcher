@@ -2,7 +2,7 @@
 
 Chrome extension that reads the job search already open in the browser (Hiring Cafe, Built In, JobRight, Dice, or Indeed), checks duplicates, and appends new rows to Google Sheets.
 
-Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**, **Luke**. Pick the profile in the extension. The open page is the search.
+Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**, **Luke**, **Stout**. Pick the profile in the extension. The open page is the search.
 
 ## Setup
 
@@ -37,7 +37,8 @@ Duplicate checks run before any job page is opened. Built In and Hiring Cafe emp
 | Profile | Local path | Match |
 |---------|------------|--------|
 | **Clinton / Nathan / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
-| **Eric / Jay / Daniel / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
+| **Eric / Jay / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
+| **Daniel / Stout** | — | **Sheet only** (company already on that profile’s tab) |
 
 Blake skips a company already on his own local CV or sheet, and uploads only Greenhouse, Ashby, Rippling, Workable, Lever, and Workday job links. Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Neither checks Blake’s sheet. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only.
 
@@ -48,7 +49,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 1. Read the open search, including later pages
 2. Within-run dedupe (same company / apply URL)
 3. Title filter (manager, director, designer, researcher, leader, VP, owner, security)
-4. Local company check (file or subfolder) → sheet company check (skipped for Eric/Jay/Daniel/Luke)
+4. Local company check (file or subfolder; skipped for Daniel/Stout) → sheet company check (skipped for Eric/Jay/Luke)
 5. Resolve Built In and Hiring Cafe employer links for jobs that will upload
 6. Blake: keep Greenhouse, Ashby, Rippling, Workable, Lever, and Workday links only · Clinton↔Nathan: skip a job link already on the other sheet · then upload to the profile tab with the date
 
