@@ -37,25 +37,36 @@ function usResumeDir(profileName: string): string {
   return `E:\\Data\\RM\\US Resume\\Resumes\\${profileName}`;
 }
 
+/** Blake: upload Greenhouse, Ashby, Rippling, Workable, Lever, Workday only. */
+const BLAKE_STYLE_ATS_HOSTS = [
+  "greenhouse.io",
+  "ashbyhq.com",
+  "rippling.com",
+  "workable.com",
+  "lever.co",
+  "myworkdayjobs.com",
+  "workday.com",
+] as const;
+
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
     cvRootDir: remoteCvDir("Clinton"),
     cvMatchMode: "filename",
-    peerSheetNames: ["Nathan", "Blake"],
+    peerSheetNames: ["Nathan"],
   },
   Nathan: {
     name: "Nathan",
     cvRootDir: remoteCvDir("Nathan"),
     cvMatchMode: "filename",
-    peerSheetNames: ["Clinton", "Blake"],
+    peerSheetNames: ["Clinton"],
   },
   Blake: {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
-    /** Blake: local CV + Blake sheet company only; upload Greenhouse and Ashby links only. */
-    uploadHostAllowlist: ["greenhouse.io", "ashbyhq.com"],
+    /** Local CV + own sheet company only; ATS links only. */
+    uploadHostAllowlist: BLAKE_STYLE_ATS_HOSTS,
   },
   Eric: {
     name: "Eric",

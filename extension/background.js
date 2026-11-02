@@ -691,7 +691,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       report(`Built In without employer URL skipped ${uploaded.skippedBuiltinListing}`);
     }
     if (uploaded.skippedByHostAllowlist) {
-      report(`Not Greenhouse or Ashby skipped ${uploaded.skippedByHostAllowlist}`);
+      report(`Not ATS host skipped ${uploaded.skippedByHostAllowlist}`);
     }
     if (uploaded.skippedByPeerSheet) {
       report(`Same job link on peer sheet skipped ${uploaded.skippedByPeerSheet}`);
