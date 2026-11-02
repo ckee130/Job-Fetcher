@@ -28,9 +28,9 @@ Leave that window open. It prints `http://127.0.0.1:3921` and a token (saved in 
 1. Chrome → `chrome://extensions` → Developer mode → Load unpacked → the `extension` folder.
 2. Open the extension and paste the token.
 3. On the job site, sign in if asked, set the filters, and open page 1 of the results.
-4. Click the extension, pick the profile, and choose **Collect**. The server address and token are under **Connection**.
+4. Click the extension, pick the profile, choose **Job sites** (All, or one or more ATS hosts), and choose **Collect**. The server address and token are under **Connection**.
 
-Duplicate checks run before any job page is opened. Built In and Hiring Cafe employer links are then loaded only for jobs that passed those checks. Dice keeps the Dice job link. Rows that are still only a Built In link are not uploaded. Clinton and Nathan then skip a job whose job link is already on each other’s sheet. Blake uploads Greenhouse, Ashby, Rippling, Workable, Lever, and Workday links only, and dedupes against his own local CV and sheet. New rows go to the sheet tab with that profile’s name.
+Duplicate checks run before any job page is opened. Built In and Hiring Cafe employer links are then loaded only for jobs that passed those checks. Dice keeps the Dice job link. Rows that are still only a Built In link are not uploaded. Clinton and Nathan then skip a job whose job link is already on each other’s sheet. If specific job sites are selected, only matching employer links are uploaded (**All** keeps every link). New rows go to the sheet tab with that profile’s name.
 
 ## Profiles
 
@@ -40,7 +40,7 @@ Duplicate checks run before any job page is opened. Built In and Hiring Cafe emp
 | **Eric / Jay / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 | **Daniel / Stout** | — | **Sheet only** (company already on that profile’s tab) |
 
-Blake skips a company already on his own local CV or sheet, and uploads only Greenhouse, Ashby, Rippling, Workable, Lever, and Workday job links. Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Neither checks Blake’s sheet. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only.
+Blake skips a company already on his own local CV or sheet. Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Neither checks Blake’s sheet. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only. Job site filtering (Greenhouse, Ashby, Lever, SmartRecruiters, Workable, Workday, Rippling, or All) is chosen in the extension for every profile.
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
 
@@ -51,7 +51,7 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 3. Title filter (manager, director, designer, researcher, leader, VP, owner, security)
 4. Local company check (file or subfolder; skipped for Daniel/Stout) → sheet company check (skipped for Eric/Jay/Luke)
 5. Resolve Built In and Hiring Cafe employer links for jobs that will upload
-6. Blake: keep Greenhouse, Ashby, Rippling, Workable, Lever, and Workday links only · Clinton↔Nathan: skip a job link already on the other sheet · then upload to the profile tab with the date
+6. Job site filter (if not All): keep matching employer hosts only · Clinton↔Nathan: skip a job link already on the other sheet · then upload to the profile tab with the date
 
 ## Env
 

@@ -682,8 +682,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     checkStop();
     report(`Uploading ${keepers.length} job(s)…`);
+    const jobSites = Array.isArray(message.jobSites) && message.jobSites.length
+      ? message.jobSites
+      : ["all"];
     const uploaded = await postJson(server, message.token, "/upload", {
       profile: message.profile,
+      jobSites,
       jobs: keepers,
     });
     if (!uploaded.ok) report(uploaded.error || "Upload failed.");
@@ -691,7 +695,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       report(`Built In without employer URL skipped ${uploaded.skippedBuiltinListing}`);
     }
     if (uploaded.skippedByHostAllowlist) {
-      report(`Not ATS host skipped ${uploaded.skippedByHostAllowlist}`);
+      report(`Job site filter skipped ${uploaded.skippedByHostAllowlist}`);
     }
     if (uploaded.skippedByPeerSheet) {
       report(`Same job link on peer sheet skipped ${uploaded.skippedByPeerSheet}`);

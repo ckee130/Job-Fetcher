@@ -12,11 +12,6 @@ export type Profile = {
    * one of these sheets. Compares the Job Link column only.
    */
   peerSheetNames?: readonly string[];
-  /**
-   * When set, upload only jobs whose job link hostname matches one of these
-   * (after employer links are resolved). Example: greenhouse.io, ashbyhq.com.
-   */
-  uploadHostAllowlist?: readonly string[];
   /** Absolute resume root for this profile (overrides CV_DIR template). */
   cvRootDir?: string;
   /**
@@ -39,17 +34,6 @@ function usResumeDir(profileName: string): string {
   return `E:\\Data\\RM\\US Resume\\Resumes\\${profileName}`;
 }
 
-/** Blake: upload Greenhouse, Ashby, Rippling, Workable, Lever, Workday only. */
-const BLAKE_STYLE_ATS_HOSTS = [
-  "greenhouse.io",
-  "ashbyhq.com",
-  "rippling.com",
-  "workable.com",
-  "lever.co",
-  "myworkdayjobs.com",
-  "workday.com",
-] as const;
-
 export const PROFILES = {
   Clinton: {
     name: "Clinton",
@@ -67,8 +51,6 @@ export const PROFILES = {
     name: "Blake",
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
-    /** Local CV + own sheet company only; ATS links only. */
-    uploadHostAllowlist: BLAKE_STYLE_ATS_HOSTS,
   },
   Eric: {
     name: "Eric",

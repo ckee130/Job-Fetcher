@@ -1,4 +1,6 @@
 const profileEl = document.getElementById("profile");
+const jobsiteInputs = [...document.querySelectorAll('input[name="jobsite"]')];
+const allSiteEl = jobsiteInputs.find((el) => el.value === "all");
 const serverEl = document.getElementById("server");
 const tokenEl = document.getElementById("token");
 const collectEl = document.getElementById("collect");
@@ -11,6 +13,7 @@ function setRunning(running) {
   collectEl.disabled = running;
   stopEl.disabled = !running;
   profileEl.disabled = running;
+  for (const el of jobsiteInputs) el.disabled = running;
   document.body.classList.toggle("running", running);
   if (running) statusEl.textContent = "Collecting";
 }
@@ -26,10 +29,44 @@ function renderLog(lines) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-chrome.storage.local.get(["profile", "server", "token"], (saved) => {
+function selectedJobSites() {
+  const checked = jobsiteInputs.filter((el) => el.checked).map((el) => el.value);
+  if (checked.includes("all") || checked.length === 0) return ["all"];
+  return checked;
+}
+
+function applyJobSites(sites) {
+  const wanted = new Set(Array.isArray(sites) && sites.length ? sites : ["all"]);
+  if (wanted.has("all")) {
+    for (const el of jobsiteInputs) el.checked = el.value === "all";
+    return;
+  }
+  for (const el of jobsiteInputs) el.checked = wanted.has(el.value);
+  if (!jobsiteInputs.some((el) => el.value !== "all" && el.checked) && allSiteEl) {
+    allSiteEl.checked = true;
+  }
+}
+
+function onJobSiteChange(event) {
+  const changed = event.target;
+  if (!(changed instanceof HTMLInputElement)) return;
+  if (changed.value === "all" && changed.checked) {
+    for (const el of jobsiteInputs) {
+      if (el !== changed) el.checked = false;
+    }
+  } else if (changed.value !== "all" && changed.checked && allSiteEl) {
+    allSiteEl.checked = false;
+  } else if (!jobsiteInputs.some((el) => el.checked) && allSiteEl) {
+    allSiteEl.checked = true;
+  }
+  saveSettings();
+}
+
+chrome.storage.local.get(["profile", "server", "token", "jobSites"], (saved) => {
   if (saved.profile) profileEl.value = saved.profile;
   if (saved.server) serverEl.value = saved.server;
   if (saved.token) tokenEl.value = saved.token;
+  applyJobSites(saved.jobSites);
 });
 
 function saveSettings() {
@@ -37,11 +74,15 @@ function saveSettings() {
     profile: profileEl.value,
     server: serverEl.value.trim(),
     token: tokenEl.value.trim(),
+    jobSites: selectedJobSites(),
   });
 }
 
 for (const el of [profileEl, serverEl, tokenEl]) {
   el.addEventListener("change", saveSettings);
+}
+for (const el of jobsiteInputs) {
+  el.addEventListener("change", onJobSiteChange);
 }
 
 chrome.runtime.onMessage.addListener((message) => {
@@ -80,6 +121,7 @@ collectEl.addEventListener("click", async () => {
     const result = await chrome.runtime.sendMessage({
       type: "collect",
       profile: profileEl.value,
+      jobSites: selectedJobSites(),
       server,
       token,
     });

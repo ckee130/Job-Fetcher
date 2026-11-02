@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { dedupeWithinRun } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
+import { hostsForJobSites } from "./jobSites.js";
 import { listProfiles, setActiveProfile } from "./profiles.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import type { JobRecord, JobSource } from "./types.js";
@@ -104,7 +105,7 @@ async function prepare(profileName: string, jobs: JobRecord[]) {
   };
 }
 
-async function upload(profileName: string, jobs: JobRecord[]) {
+async function upload(profileName: string, jobs: JobRecord[], jobSites: string[]) {
   const profile = setActiveProfile(profileName);
   progressPhase(`Extension upload (${profile.name})`);
 
@@ -117,7 +118,7 @@ async function upload(profileName: string, jobs: JobRecord[]) {
   }
 
   let skippedByHostAllowlist = 0;
-  const hostAllowlist = profile.uploadHostAllowlist ?? [];
+  const hostAllowlist = hostsForJobSites(jobSites);
   if (hostAllowlist.length > 0) {
     const allowedJobs = uploadReady.filter((job) => jobLinkHostAllowed(job.jobLink, hostAllowlist));
     skippedByHostAllowlist = uploadReady.length - allowedJobs.length;
@@ -204,17 +205,26 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    const payload = JSON.parse(await readBody(req)) as { profile?: unknown; jobs?: unknown };
+    const payload = JSON.parse(await readBody(req)) as {
+      profile?: unknown;
+      jobs?: unknown;
+      jobSites?: unknown;
+    };
     const profile = typeof payload.profile === "string" ? payload.profile : "";
     const jobs = Array.isArray(payload.jobs)
       ? payload.jobs.map(asJob).filter((job): job is JobRecord => Boolean(job))
       : [];
+    const jobSites = Array.isArray(payload.jobSites)
+      ? payload.jobSites.filter((s): s is string => typeof s === "string")
+      : ["all"];
     if (!profile) {
       sendJson(res, 400, { ok: false, error: "Missing profile" });
       return;
     }
     const result =
-      url.pathname === "/prepare" ? await prepare(profile, jobs) : await upload(profile, jobs);
+      url.pathname === "/prepare"
+        ? await prepare(profile, jobs)
+        : await upload(profile, jobs, jobSites);
     sendJson(res, result.ok ? 200 : 500, result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
