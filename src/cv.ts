@@ -65,7 +65,7 @@ function listFilenames(dir: string): string[] {
   }
 }
 
-/** Resume packages in Clinton/Nathan/Blake folders. */
+/** Resume packages in Clinton/Nathan/Blake/Patrick folders. */
 function isCvResumeFile(name: string): boolean {
   return /\.(docx\.zip|zip|docx|pdf|rar|7z)$/i.test(name);
 }

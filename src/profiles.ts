@@ -52,6 +52,11 @@ export const PROFILES = {
     cvRootDir: remoteCvDir("Blake"),
     cvMatchMode: "filename",
   },
+  Patrick: {
+    name: "Patrick",
+    cvRootDir: remoteCvDir("Patrick"),
+    cvMatchMode: "filename",
+  },
   Eric: {
     name: "Eric",
     cvRootDir: usResumeDir("Eric"),

@@ -2,7 +2,7 @@
 
 Chrome extension that reads the job search already open in the browser (Hiring Cafe, Built In, JobRight, Dice, or Indeed), checks duplicates, and appends new rows to Google Sheets.
 
-Profiles: **Clinton**, **Nathan**, **Blake**, **Eric**, **Jay**, **Daniel**, **Luke**, **Stout**. Pick the profile in the extension. The open page is the search.
+Profiles: **Clinton**, **Nathan**, **Blake**, **Patrick**, **Eric**, **Jay**, **Daniel**, **Luke**, **Stout**. Pick the profile in the extension. The open page is the search.
 
 ## Setup
 
@@ -36,11 +36,11 @@ Duplicate checks run before any job page is opened. Built In and Hiring Cafe emp
 
 | Profile | Local path | Match |
 |---------|------------|--------|
-| **Clinton / Nathan / Blake** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
+| **Clinton / Nathan / Blake / Patrick** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
 | **Eric / Jay / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 | **Daniel / Stout** | — | **Sheet only** (company already on that profile’s tab) |
 
-Blake skips a company already on his own local CV or sheet. Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Neither checks Blake’s sheet. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only. Job site filtering (Greenhouse, Ashby, Lever, SmartRecruiters, Workable, Workday, Rippling, or All) is chosen in the extension for every profile.
+Blake and Patrick each skip a company already on their own local CV or sheet. Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Neither checks Blake’s or Patrick’s sheet. Eric, Jay, Daniel, and Luke skip the sheet company check and use the local folder only. Job site filtering (Greenhouse, Ashby, Lever, SmartRecruiters, Workable, Workday, Rippling, or All) is chosen in the extension for every profile.
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
 
