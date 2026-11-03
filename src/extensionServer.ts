@@ -7,7 +7,7 @@ import { config } from "./config.js";
 import { dedupeWithinRun } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
-import { hostsForJobSites } from "./jobSites.js";
+import { jobLinkMatchesJobSites, jobSiteFilterLabel } from "./jobSites.js";
 import { listProfiles, setActiveProfile } from "./profiles.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import type { JobRecord, JobSource } from "./types.js";
@@ -40,18 +40,6 @@ function tokensMatch(got: string, expected: string): boolean {
 function isBuiltinHost(url: string): boolean {
   try {
     return /(?:^|\.)builtin\.com$/i.test(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-}
-
-function jobLinkHostAllowed(url: string, allowlist: readonly string[]): boolean {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return allowlist.some((suffix) => {
-      const needle = suffix.toLowerCase().replace(/^\./, "");
-      return host === needle || host.endsWith(`.${needle}`);
-    });
   } catch {
     return false;
   }
@@ -118,17 +106,17 @@ async function upload(profileName: string, jobs: JobRecord[], jobSites: string[]
   }
 
   let skippedByHostAllowlist = 0;
-  const hostAllowlist = hostsForJobSites(jobSites);
-  if (hostAllowlist.length > 0) {
-    const allowedJobs = uploadReady.filter((job) => jobLinkHostAllowed(job.jobLink, hostAllowlist));
+  const filterLabel = jobSiteFilterLabel(jobSites);
+  if (filterLabel !== "all") {
+    const allowedJobs = uploadReady.filter((job) =>
+      jobLinkMatchesJobSites(job.jobLink, jobSites),
+    );
     skippedByHostAllowlist = uploadReady.length - allowedJobs.length;
     uploadReady = allowedJobs;
     if (skippedByHostAllowlist > 0) {
-      progress(
-        `skipped ${skippedByHostAllowlist} job(s) — link is not ${hostAllowlist.join(" or ")}`,
-      );
+      progress(`skipped ${skippedByHostAllowlist} job(s) — link is not ${filterLabel}`);
     }
-    progress(`${hostAllowlist.join(" / ")} jobs to upload: ${uploadReady.length}`);
+    progress(`${filterLabel} jobs to upload: ${uploadReady.length}`);
   }
 
   const appended =
