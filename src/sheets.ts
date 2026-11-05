@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { google, type sheets_v4 } from "googleapis";
 
+import { normalizeCompany, normalizeText } from "./company.js";
 import { config } from "./config.js";
 import { filterJobsByCvDir, filterJobsByPeerCvRoles } from "./cv.js";
 import { progress } from "./progress.js";
@@ -11,13 +12,7 @@ import type { JobRecord } from "./types.js";
 
 const HEADER = ["Company", "Role", "Job Link", "Source", "Date", "Type"] as const;
 
-export function normalizeCompany(name: string): string {
-  return normalizeText(name);
-}
-
-export function normalizeText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
+export { normalizeCompany, normalizeText };
 
 /** Local calendar date as YYYY-MM-DD (no time). */
 export function todayDate(): string {

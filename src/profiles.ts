@@ -24,6 +24,11 @@ export type Profile = {
   skipSheetCompanyCheck?: boolean;
   /** When true, skip local CV/folder company dedupe (sheet check only). */
   skipCvCompanyCheck?: boolean;
+  /**
+   * Always drop jobs whose employer link matches these ATS ids
+   * (greenhouse, ashby, …) after links are resolved.
+   */
+  excludeJobSites?: readonly string[];
 };
 
 function remoteCvDir(profileName: string): string {
@@ -84,6 +89,12 @@ export const PROFILES = {
     name: "Stout",
     /** Sheet company dedupe only — no local CV/folder check. */
     skipCvCompanyCheck: true,
+  },
+  "Real man": {
+    name: "Real man",
+    /** Sheet company dedupe only; upload everything except Greenhouse/Ashby. */
+    skipCvCompanyCheck: true,
+    excludeJobSites: ["greenhouse", "ashby"],
   },
 } as const satisfies Record<string, Profile>;
 

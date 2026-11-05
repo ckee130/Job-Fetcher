@@ -1,16 +1,13 @@
 import fs from "node:fs";
 
+import { normalizeCompany, normalizeText } from "./company.js";
 import { config } from "./config.js";
 import { getActiveProfile, PROFILES, type ProfileName } from "./profiles.js";
 import { progress } from "./progress.js";
 import type { JobRecord } from "./types.js";
 
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
 export function companyNameMatchVariants(company: string): string[] {
-  const normalized = normalizeText(company);
+  const normalized = normalizeCompany(company);
   if (!normalized) return [];
   const words = normalized.split(" ").filter(Boolean);
   if (words.length <= 1) return [normalized];
@@ -18,7 +15,7 @@ export function companyNameMatchVariants(company: string): string[] {
 }
 
 export function companyNameSubdirKey(company: string): string {
-  return normalizeText(company);
+  return normalizeCompany(company);
 }
 
 /** True if any filename in the CV dir contains the company name (or hyphen/space variants). */
@@ -26,8 +23,11 @@ export function companyHasCvFile(company: string, filenames: string[]): boolean 
   const variants = companyNameMatchVariants(company);
   if (variants.length === 0 || filenames.length === 0) return false;
   return filenames.some((name) => {
-    const haystack = normalizeText(name);
-    return variants.some((variant) => haystack.includes(variant));
+    const haystack = normalizeText(name).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+    const haystackSlug = haystack.replace(/\s+/g, "-");
+    return variants.some(
+      (variant) => haystack.includes(variant) || haystackSlug.includes(variant),
+    );
   });
 }
 

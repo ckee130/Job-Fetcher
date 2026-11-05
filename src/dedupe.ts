@@ -1,4 +1,4 @@
-import { normalizeCompany } from "./sheets.js";
+import { normalizeCompany } from "./company.js";
 import type { JobRecord } from "./types.js";
 
 const AGGREGATOR_HOST = /(?:^|\.)(?:hiringcafe\.com|builtin\.com|jobright\.ai|dice\.com|indeed\.com)$/i;

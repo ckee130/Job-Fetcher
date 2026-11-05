@@ -697,6 +697,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (uploaded.skippedByHostAllowlist) {
       report(`Job site filter skipped ${uploaded.skippedByHostAllowlist}`);
     }
+    if (uploaded.skippedByExcludedJobSites) {
+      report(`Excluded ATS skipped ${uploaded.skippedByExcludedJobSites}`);
+    }
     if (uploaded.skippedByPeerSheet) {
       report(`Same job link on peer sheet skipped ${uploaded.skippedByPeerSheet}`);
     }

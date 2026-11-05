@@ -7,7 +7,11 @@ import { config } from "./config.js";
 import { dedupeWithinRun } from "./dedupe.js";
 import { filterJobsByTitle } from "./filters.js";
 import { progress, progressPhase } from "./progress.js";
-import { jobLinkMatchesJobSites, jobSiteFilterLabel } from "./jobSites.js";
+import {
+  jobLinkMatchesExcludedJobSites,
+  jobLinkMatchesJobSites,
+  jobSiteFilterLabel,
+} from "./jobSites.js";
 import { listProfiles, setActiveProfile } from "./profiles.js";
 import { appendRowsToSheet, filterJobsForUpload } from "./sheets.js";
 import type { JobRecord, JobSource } from "./types.js";
@@ -119,6 +123,21 @@ async function upload(profileName: string, jobs: JobRecord[], jobSites: string[]
     progress(`${filterLabel} jobs to upload: ${uploadReady.length}`);
   }
 
+  let skippedByExcludedJobSites = 0;
+  const excludedSites = profile.excludeJobSites ?? [];
+  if (excludedSites.length > 0) {
+    const kept = uploadReady.filter(
+      (job) => !jobLinkMatchesExcludedJobSites(job.jobLink, excludedSites),
+    );
+    skippedByExcludedJobSites = uploadReady.length - kept.length;
+    uploadReady = kept;
+    if (skippedByExcludedJobSites > 0) {
+      progress(
+        `skipped ${skippedByExcludedJobSites} job(s) — excluded ${excludedSites.join(" / ")}`,
+      );
+    }
+  }
+
   const appended =
     uploadReady.length > 0
       ? await appendRowsToSheet(uploadReady)
@@ -129,6 +148,7 @@ async function upload(profileName: string, jobs: JobRecord[], jobSites: string[]
     profile: profile.name,
     skippedBuiltinListing,
     skippedByHostAllowlist,
+    skippedByExcludedJobSites,
     skippedByPeerSheet: appended.skippedByPeerSheet ?? 0,
     appended: appended.appended,
     error: appended.error,

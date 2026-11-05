@@ -32,6 +32,14 @@ function matchesSite(id: JobSiteId, url: URL): boolean {
   return hostMatches(url.hostname, JOB_SITE_HOSTS[id]);
 }
 
+function parseJobLink(jobLink: string): URL | null {
+  try {
+    return new URL(jobLink);
+  } catch {
+    return null;
+  }
+}
+
 /** True when no filter, "all", or the link matches a selected ATS. */
 export function jobLinkMatchesJobSites(jobLink: string, sites: readonly string[]): boolean {
   const selected = new Set(
@@ -39,15 +47,30 @@ export function jobLinkMatchesJobSites(jobLink: string, sites: readonly string[]
   );
   if (selected.size === 0 || selected.has("all")) return true;
 
-  let url: URL;
-  try {
-    url = new URL(jobLink);
-  } catch {
-    return false;
-  }
+  const url = parseJobLink(jobLink);
+  if (!url) return false;
 
   for (const id of JOB_SITE_IDS) {
     if (selected.has(id) && matchesSite(id, url)) return true;
+  }
+  return false;
+}
+
+/** True when the link matches any of the excluded ATS sites (e.g. greenhouse/ashby). */
+export function jobLinkMatchesExcludedJobSites(
+  jobLink: string,
+  excluded: readonly string[],
+): boolean {
+  const blocked = new Set(
+    excluded.map((s) => s.trim().toLowerCase()).filter(Boolean),
+  );
+  if (blocked.size === 0) return false;
+
+  const url = parseJobLink(jobLink);
+  if (!url) return false;
+
+  for (const id of JOB_SITE_IDS) {
+    if (blocked.has(id) && matchesSite(id, url)) return true;
   }
   return false;
 }
