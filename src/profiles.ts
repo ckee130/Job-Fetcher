@@ -52,16 +52,6 @@ export const PROFILES = {
     cvMatchMode: "filename",
     peerSheetNames: ["Clinton"],
   },
-  Blake: {
-    name: "Blake",
-    cvRootDir: remoteCvDir("Blake"),
-    cvMatchMode: "filename",
-  },
-  Patrick: {
-    name: "Patrick",
-    cvRootDir: remoteCvDir("Patrick"),
-    cvMatchMode: "filename",
-  },
   Eric: {
     name: "Eric",
     cvRootDir: usResumeDir("Eric"),
@@ -74,11 +64,6 @@ export const PROFILES = {
     cvMatchMode: "subdir",
     skipSheetCompanyCheck: true,
   },
-  Daniel: {
-    name: "Daniel",
-    /** Sheet company dedupe only — no local CV/folder check. */
-    skipCvCompanyCheck: true,
-  },
   Luke: {
     name: "Luke",
     cvRootDir: usResumeDir("Luke"),
@@ -90,11 +75,10 @@ export const PROFILES = {
     /** Sheet company dedupe only — no local CV/folder check. */
     skipCvCompanyCheck: true,
   },
-  "Real man": {
-    name: "Real man",
-    /** Sheet company dedupe only; upload everything except Greenhouse/Ashby. */
+  Naim: {
+    name: "Naim",
+    /** Sheet company dedupe only — no local CV/folder check. */
     skipCvCompanyCheck: true,
-    excludeJobSites: ["greenhouse", "ashby"],
   },
 } as const satisfies Record<string, Profile>;
 
