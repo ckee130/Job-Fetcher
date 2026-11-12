@@ -52,6 +52,11 @@ export const PROFILES = {
     cvMatchMode: "filename",
     peerSheetNames: ["Clinton"],
   },
+  Taylor: {
+    name: "Taylor",
+    cvRootDir: remoteCvDir("Taylor"),
+    cvMatchMode: "filename",
+  },
   Eric: {
     name: "Eric",
     cvRootDir: usResumeDir("Eric"),

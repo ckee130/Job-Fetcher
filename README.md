@@ -2,7 +2,7 @@
 
 Chrome extension that reads the job search already open in the browser (Hiring Cafe, Built In, JobRight, Dice, or Indeed), checks duplicates, and appends new rows to Google Sheets.
 
-Profiles: **Clinton**, **Nathan**, **Eric**, **Jay**, **Luke**, **Stout**, **Naim**. Pick the profile in the extension. The open page is the search.
+Profiles: **Clinton**, **Nathan**, **Taylor**, **Eric**, **Jay**, **Luke**, **Stout**, **Naim**. Pick the profile in the extension. The open page is the search.
 
 ## Setup
 
@@ -36,11 +36,11 @@ Duplicate checks run before any job page is opened. Built In and Hiring Cafe emp
 
 | Profile | Local path | Match |
 |---------|------------|--------|
-| **Clinton / Nathan** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
+| **Clinton / Nathan / Taylor** | `D:\Remote\CV\{profile}` | CV **filename** contains company |
 | **Eric / Jay / Luke** | `E:\Data\RM\US Resume\Resumes\{profile}` | Company **subfolder** exists |
 | **Stout / Naim** | — | **Sheet only** (company already on that profile’s tab) |
 
-Clinton and Nathan skip a job when the same job link is already on each other’s sheet (Job Link column only). Eric, Jay, and Luke skip the sheet company check and use the local folder only. Stout and Naim are sheet-only. Job site filtering (Greenhouse, Ashby, Lever, SmartRecruiters, Workable, Workday, Rippling, or All) is chosen in the extension for every profile.
+Clinton, Nathan, and Taylor check both local CV filenames and companies on their own sheet tab. Clinton and Nathan also skip a job when the same job link is already on each other’s sheet (Job Link column only). Taylor checks only its local CV folder and its own sheet tab. Eric, Jay, and Luke skip the sheet company check and use the local folder only. Stout and Naim are sheet-only. Job site filtering (Greenhouse, Ashby, Lever, SmartRecruiters, Workable, Workday, Rippling, or All) is chosen in the extension for every profile.
 
 Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` exists.
 
