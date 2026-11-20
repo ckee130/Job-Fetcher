@@ -232,8 +232,9 @@ async function fetchJobrightRecommendPage(position, refresh) {
   if (!response.ok) return { error: `JobRight HTTP ${response.status}`, jobs: [] };
   const data = await response.json().catch(() => ({}));
   if (!data?.success) return { error: data?.message || "JobRight API error", jobs: [] };
-  const jobs = (data.result?.jobList || []).map(jobrightFromApi).filter(Boolean);
-  return { jobs };
+  const rawJobs = data.result?.jobList || [];
+  const jobs = rawJobs.map(jobrightFromApi).filter(Boolean);
+  return { jobs, rawCount: rawJobs.length, pageKey: JSON.stringify(rawJobs) };
 }
 
 async function collectJobright() {
@@ -257,15 +258,13 @@ async function collectJobright() {
 
   const jobs = [];
   const seen = new Set();
+  const seenPages = new Set();
   const pageSize = 20;
-  const wanted = 100;
-  const maxPages = 7;
   let position = 0;
   let pages = 0;
-  let emptyPages = 0;
 
   try {
-    while (jobs.length < wanted && pages < maxPages) {
+    while (true) {
       checkStop();
       if (position > 0) {
         report("Waiting for the next JobRight page…");
@@ -280,23 +279,19 @@ async function collectJobright() {
       }
       const pageJobs = result.jobs || [];
       pages += 1;
-      if (pageJobs.length === 0) {
-        emptyPages += 1;
-        if (emptyPages >= 2) break;
-        position += pageSize;
-        continue;
+      if (result.rawCount === 0) break;
+      if (seenPages.has(result.pageKey)) {
+        report("JobRight returned a repeated page; stopping collection.");
+        break;
       }
-      emptyPages = 0;
-      let added = 0;
+      seenPages.add(result.pageKey);
       for (const job of pageJobs) {
         const key = job.externalId || job.jobLink;
         if (seen.has(key)) continue;
         seen.add(key);
         jobs.push(job);
-        added += 1;
       }
       report(`JobRight page ${pages} — ${jobs.length} job(s)`);
-      if (added === 0) break;
       position += pageSize;
     }
     return { jobs, pages };

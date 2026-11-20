@@ -53,6 +53,8 @@ Example: Jay + company `ABC` → skip if `E:\Data\RM\US Resume\Resumes\Jay\ABC` 
 5. Resolve Built In and Hiring Cafe employer links for jobs that will upload
 6. Job site filter (if not All): keep matching employer hosts only · Clinton↔Nathan: skip a job link already on the other sheet · then upload to the profile tab with the date
 
+JobRight reads 20 jobs per page until the API returns an empty page, with no total job or page limit. It waits seven seconds between pages and stops if the API repeats a page. Pages containing only excluded or duplicate jobs do not end collection.
+
 ## Env
 
 - `GOOGLE_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_FILE` — shared spreadsheet
