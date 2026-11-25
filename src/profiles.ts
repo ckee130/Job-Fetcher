@@ -85,8 +85,8 @@ export const PROFILES = {
     /** Sheet company dedupe only — no local CV/folder check. */
     skipCvCompanyCheck: true,
   },
-  Alexander: {
-    name: "Alexander",
+  Trey: {
+    name: "Trey",
     /** Sheet company dedupe only — no local CV/folder check, no peer sheets. */
     skipCvCompanyCheck: true,
   },
