@@ -85,6 +85,11 @@ export const PROFILES = {
     /** Sheet company dedupe only — no local CV/folder check. */
     skipCvCompanyCheck: true,
   },
+  Alexander: {
+    name: "Alexander",
+    /** Sheet company dedupe only — no local CV/folder check, no peer sheets. */
+    skipCvCompanyCheck: true,
+  },
 } as const satisfies Record<string, Profile>;
 
 export type ProfileName = keyof typeof PROFILES;
